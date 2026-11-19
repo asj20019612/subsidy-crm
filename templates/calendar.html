@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}截止日行事曆{% endblock %}
+{% block page_title %}截止日行事曆{% endblock %}
+{% block page_subtitle %}所有送件截止日與待辦到期日一覽{% endblock %}
+
+{% block header_actions %}
+<div style="display:flex;align-items:center;gap:8px">
+  <a href="/calendar?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-secondary btn-sm" title="上個月"><i data-lucide="chevron-left"></i></a>
+  <span style="font-size:14px;font-weight:700;color:#111827;min-width:90px;text-align:center">{{ year }} 年 {{ month }} 月</span>
+  <a href="/calendar?year={{ next_year }}&month={{ next_month }}" class="btn btn-secondary btn-sm" title="下個月"><i data-lucide="chevron-right"></i></a>
+  <a href="/calendar" class="btn btn-ghost btn-sm">今天</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:20px;align-items:flex-start">
+
+  {# ── Calendar grid ── #}
+  <div style="flex:1;min-width:0">
+    {# Legend #}
+    <div style="display:flex;gap:16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#EF4444"></span><span style="font-size:12px;color:#6B7280">送件截止日</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#3B82F6"></span><span style="font-size:12px;color:#6B7280">下一步到期日</span></div>
+    </div>
+
+    <div class="card" style="overflow:hidden">
+      {# Weekday header #}
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);background:#FAFAFA;border-bottom:1px solid #F3F4F6">
+        {% for w in weekday_labels %}
+        <div style="padding:9px 0;text-align:center;font-size:11px;font-weight:700;color:{{ '#EF4444' if loop.index0 == 0 else ('#3B82F6' if loop.index0 == 6 else '#9CA3AF') }};text-transform:uppercase;letter-spacing:.04em">{{ w }}</div>
+        {% endfor %}
+      </div>
+
+      {# Weeks #}
+      {% for week in weeks %}
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid #F3F4F6">
+        {% for day in week %}
+        {% set iso = '%04d-%02d-%02d'|format(year, month, day) if day else '' %}
+        {% set subs = submissions.get(iso, []) %}
+        {% set nexts = next_actions.get(iso, []) %}
+        {% set is_today = iso == today_iso %}
+        <div style="min-height:104px;padding:6px 7px;border-right:1px solid #F3F4F6;
+                    {% if not day %}background:#FCFCFD{% elif is_today %}background:#EFF6FF{% endif %}">
+          {% if day %}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:{{ '700' if is_today else '500' }};
+                         {% if is_today %}background:#3B82F6;color:white;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center{% else %}color:#6B7280{% endif %}">{{ day }}</span>
+          </div>
+
+          {# submission deadlines (critical) #}
+          {% for p in subs %}
+          <a href="/projects/{{ p.id }}/edit" title="送件截止：{{ p.client_name }} — {{ p.project_name }}"
+             style="display:block;background:#FEF2F2;border-left:3px solid #EF4444;border-radius:4px;
+                    padding:3px 6px;margin-bottom:3px;text-decoration:none;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            <span style="font-size:10.5px;color:#991B1B;font-weight:600">📮 {{ p.client_name or p.project_name }}</span>
+          </a>
+          {% endfor %}
+
+          {# next-action deadlines #}
+          {% for p in nexts %}
+          <a href="/projects/{{ p.id }}/edit" title="下一步到期：{{ p.client_name }} — {{ p.project_name }}"
+             style="display:block;background:#EFF6FF;border-left:3px solid #3B82F6;border-radius:4px;
+                    padding:3px 6px;margin-bottom:3px;text-decoration:none;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            <span style="font-size:10.5px;color:#1E40AF;font-weight:500">{{ p.client_name or p.project_name }}</span>
+          </a>
+          {% endfor %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Upcoming submission deadlines (next 30 days) ── #}
+  <div style="width:280px;flex-shrink:0">
+    <div class="card" style="overflow:hidden">
+      <div style="padding:11px 16px;border-bottom:1px solid #F3F4F6;background:#FAFAFA;display:flex;align-items:center;gap:7px">
+        <i data-lucide="alarm-clock" style="width:14px;height:14px;color:#EF4444"></i>
+        <span style="font-size:12px;font-weight:700;color:#374151">30 天內送件截止</span>
+      </div>
+      {% if not upcoming %}
+      <div style="padding:24px 16px;text-align:center;font-size:12px;color:#9CA3AF">近期沒有送件截止日</div>
+      {% else %}
+      {% for d, p in upcoming %}
+      {% set dleft = (d - today).days %}
+      <a href="/projects/{{ p.id }}/edit" style="display:block;padding:11px 16px;border-bottom:1px solid #F9FAFB;text-decoration:none;transition:background .1s"
+         onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background='transparent'">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;font-weight:700;color:#111827">{{ p.client_name or '—' }}</span>
+          <span style="font-size:11px;font-weight:700;color:{{ '#DC2626' if dleft <= 7 else '#D97706' if dleft <= 14 else '#6B7280' }}">
+            {% if dleft == 0 %}今天{% else %}{{ dleft }} 天後{% endif %}
+          </span>
+        </div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.project_name }}</div>
+        <div style="font-size:10.5px;color:#B0B7C3;margin-top:3px">📮 {{ d.isoformat() }}</div>
+      </a>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 環境變數（密鑰不要上傳）
+.env
+
+# 本機資料庫與上傳檔（不上傳，雲端用 Postgres + Volume）
+*.db
+*.sqlite3
+data/
+uploads/
+
+# 其他
+.DS_Store
+.vscode/

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}成效分析{% endblock %}
+{% block page_title %}成效分析{% endblock %}
+{% block page_subtitle %}案件成效、漏斗與來源分析{% endblock %}
+
+{% block content %}
+
+{# ── Top KPIs ── #}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+  {% set kpis = [
+    ('總案件數', total, '件', '#111827', '所有建檔案件'),
+    ('進行中', active_n, '件', '#1E40AF', '尚未結案'),
+    ('獲補助', won, '件', '#047857', '已成功獲補助'),
+    ('獲補助率', '%.0f'|format(win_rate), '%', '#7C3AED', '獲補助 / 總案件'),
+  ] %}
+  {% for label, val, unit, color, hint in kpis %}
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:16px 18px">
+    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">{{ label }}</div>
+    <div style="font-size:26px;font-weight:700;color:{{ color }};letter-spacing:-0.02em">{{ val }}<span style="font-size:13px;color:#9CA3AF;font-weight:500;margin-left:2px">{{ unit }}</span></div>
+    <div style="font-size:11px;color:#9CA3AF;margin-top:4px">{{ hint }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Financial KPIs ── #}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:16px 18px">
+    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">累計核定補助款</div>
+    <div style="font-size:22px;font-weight:700;color:#047857">{{ fmt_money(total_subsidy) }}</div>
+  </div>
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:16px 18px">
+    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">累計計畫書費</div>
+    <div style="font-size:22px;font-weight:700;color:#1E40AF">{{ fmt_money(total_wfee) }}</div>
+  </div>
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:16px 18px">
+    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">成交率（已成交 {{ closed }} 件）</div>
+    <div style="font-size:22px;font-weight:700;color:#7C3AED">{{ '%.0f'|format(close_rate) }}%</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start">
+
+  {# ── Pipeline funnel ── #}
+  <div class="card" style="overflow:hidden">
+    <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6"><span style="font-size:13px;font-weight:600;color:#111827">案件階段漏斗</span></div>
+    <div style="padding:18px 20px">
+      {% if total == 0 %}
+      <div style="text-align:center;color:#9CA3AF;font-size:13px;padding:20px">尚無案件資料</div>
+      {% else %}
+      {% for f in funnel %}
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:11px">
+        <div style="width:84px;flex-shrink:0;font-size:12px;color:#374151;text-align:right">{{ f.stage }}</div>
+        <div style="flex:1;background:#F3F4F6;border-radius:6px;height:24px;position:relative;overflow:hidden">
+          <div style="height:100%;background:{{ f.color }};border-radius:6px;width:{{ (f.count / funnel_max * 100)|int if funnel_max else 0 }}%;min-width:{{ '24' if f.count else '0' }}px;transition:width .3s"></div>
+          <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:700;color:{{ '#fff' if f.count and (f.count/funnel_max) > 0.15 else '#374151' }}">{{ f.count }}</span>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Subsidy type distribution ── #}
+  <div class="card" style="overflow:hidden">
+    <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6"><span style="font-size:13px;font-weight:600;color:#111827">補助類型分布</span></div>
+    <div style="padding:18px 20px">
+      {% if not sub_dist %}
+      <div style="text-align:center;color:#9CA3AF;font-size:13px;padding:20px">尚無資料</div>
+      {% else %}
+      {% for name, n in sub_dist %}
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span class="badge" style="{{ badge_style(name) }}">{{ name }}</span>
+          <span style="font-size:12px;font-weight:700;color:#374151">{{ n }} 件</span>
+        </div>
+        <div style="background:#F3F4F6;border-radius:5px;height:6px;overflow:hidden">
+          <div style="height:100%;background:#6366F1;border-radius:5px;width:{{ (n / sub_max * 100)|int if sub_max else 0 }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Referral source ranking ── #}
+  <div class="card" style="overflow:hidden">
+    <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6"><span style="font-size:13px;font-weight:600;color:#111827">引薦來源排行</span></div>
+    <div style="padding:18px 20px">
+      {% if not ref_rank %}
+      <div style="text-align:center;color:#9CA3AF;font-size:13px;padding:20px">尚無引薦資料</div>
+      {% else %}
+      {% for name, n in ref_rank %}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px">
+        <i data-lucide="user-plus" style="width:13px;height:13px;color:#A78BFA;flex-shrink:0"></i>
+        <span style="font-size:12px;color:#374151;width:80px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ name }}</span>
+        <div style="flex:1;background:#F3F4F6;border-radius:5px;height:7px;overflow:hidden">
+          <div style="height:100%;background:#A78BFA;border-radius:5px;width:{{ (n / ref_max * 100)|int if ref_max else 0 }}%"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:#374151;width:34px;text-align:right">{{ n }} 件</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Stuck deals (longest since update) ── #}
+  <div class="card" style="overflow:hidden">
+    <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:7px">
+      <i data-lucide="alert-triangle" style="width:14px;height:14px;color:#D97706"></i>
+      <span style="font-size:13px;font-weight:600;color:#111827">最久未更新案件</span>
+    </div>
+    <div>
+      {% if not stuck %}
+      <div style="text-align:center;color:#9CA3AF;font-size:13px;padding:24px">沒有停滯案件</div>
+      {% else %}
+      {% for days, p in stuck %}
+      <a href="/projects/{{ p.id }}/edit" style="display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid #F9FAFB;text-decoration:none;transition:background .1s"
+         onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background='transparent'">
+        <div style="min-width:0">
+          <div style="font-size:12px;font-weight:600;color:#111827">{{ p.client_name or '—' }}</div>
+          <div style="margin-top:3px"><span class="badge" style="{{ badge_style(p.current_stage) }}">{{ p.current_stage }}</span></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:{{ '#DC2626' if days >= 14 else '#D97706' if days >= 7 else '#9CA3AF' }};flex-shrink:0">{{ days }} 天</span>
+      </a>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{# ── Owner workload ── #}
+{% if owner_rank %}
+<div class="card" style="overflow:hidden;margin-top:20px">
+  <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6"><span style="font-size:13px;font-weight:600;color:#111827">負責人工作量（進行中案件）</span></div>
+  <div style="padding:14px 20px;display:flex;flex-wrap:wrap;gap:10px">
+    {% for name, n in owner_rank %}
+    <div style="display:flex;align-items:center;gap:8px;background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:7px 13px">
+      <div style="width:24px;height:24px;border-radius:50%;background:#EEF2FF;color:#4338CA;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ name[0]|upper }}</div>
+      <span style="font-size:12px;color:#374151;font-weight:500">{{ name }}</span>
+      <span style="font-size:12px;font-weight:700;color:#4F46E5">{{ n }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

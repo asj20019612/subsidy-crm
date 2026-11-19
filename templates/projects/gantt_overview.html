@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}專案甘特圖{% endblock %}
+{% block page_title %}專案甘特圖{% endblock %}
+{% block page_subtitle %}選一個案件，查看甘特圖、調整任務，或產出給客戶的圖片{% endblock %}
+{% block header_actions %}
+<form method="GET" style="display:flex;align-items:center;gap:6px">
+  <div style="position:relative">
+    <i data-lucide="search" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9CA3AF;pointer-events:none"></i>
+    <input type="text" name="q" value="{{ q }}" placeholder="搜尋客戶或案名…" style="width:200px;padding-left:30px;font-size:13px">
+  </div>
+  {% if q %}<a href="/gantt" class="btn btn-ghost btn-sm">清除</a>{% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+
+{% if not rows %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-title">{{ '找不到符合的案件' if q else '還沒有案件' }}</div>
+    {% if not q %}<a href="/projects/add" style="margin-top:8px;font-size:12px;color:#2E4C6B;text-decoration:none">新增第一個案件 →</a>{% endif %}
+  </div>
+</div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px">
+  {% for r in rows %}
+  {% set p = r.p %}
+  <div class="card" style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+      <div style="min-width:0">
+        <div style="font-size:14px;font-weight:700;color:#24231F">{{ p.client_name or '—' }}</div>
+        <div style="font-size:12px;color:#6B675E;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.project_name }}</div>
+      </div>
+      <span class="badge" style="{{ badge_style(p.current_stage) }};flex-shrink:0">{{ p.current_stage }}</span>
+    </div>
+
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#9A948A;margin-bottom:5px">
+        <span>{{ r.n }} 項任務</span>
+        <span class="num">{{ r.avg }}%</span>
+      </div>
+      <div style="background:#F1EFEA;border-radius:4px;height:5px;overflow:hidden">
+        <div style="height:100%;background:{{ '#3F6B52' if r.avg >= 100 else '#2E4C6B' }};width:{{ r.avg }}%"></div>
+      </div>
+      <div style="font-size:11px;color:#9A948A;margin-top:7px">
+        {% if r.start %}{{ r.start }} → {{ r.end }}{% else %}尚未排定日期{% endif %}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:2px">
+      <a href="/projects/{{ p.id }}/execution" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">
+        <i data-lucide="gantt-chart"></i> 開啟甘特圖
+      </a>
+      <a href="/projects/{{ p.id }}/gantt-share" target="_blank" class="btn btn-secondary btn-sm" title="產出給客戶的圖片">
+        <i data-lucide="image"></i> 客戶圖片
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

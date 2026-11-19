@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}補助顧問 CRM{% endblock %}</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      sidebar: '#FFFFFF',
+      'sidebar-hover': '#F2F0EB',
+      'sidebar-active': '#ECF1F6',
+      surface: '#F7F6F3',
+      accent: '#2E4C6B',
+    },
+    fontFamily: { sans: ['Noto Sans TC','Inter','ui-sans-serif','system-ui','sans-serif'] },
+  }}
+}
+</script>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ═══ ConsultantOS Design System — Warm-neutral + slate-blue ═══ */
+:root {
+  --sidebar-bg:     #FFFFFF;
+  --sidebar-border: #E7E3DD;
+  --sidebar-hover:  #F2F0EB;
+  --sidebar-active: #ECF1F6;
+  --sidebar-accent: #2E4C6B;
+  --sidebar-text:   #6B675E;
+  --sidebar-text-h: #24231F;
+  --sidebar-text-a: #2E4C6B;
+
+  --surface-bg:    #F7F6F3;
+  --surface-card:  #FFFFFF;
+  --surface-hover: #F2F0EB;
+
+  --text-primary:   #24231F;
+  --text-secondary: #6B675E;
+  --text-muted:     #9A948A;
+
+  --border:        #E7E3DD;
+  --border-subtle: #F1EFEA;
+
+  --accent:     #2E4C6B;
+  --accent-bg:  #ECF1F6;
+  --accent-txt: #2E4C6B;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+body { font-family: 'Noto Sans TC', 'Inter', ui-sans-serif, sans-serif;
+       font-size: 13px; line-height: 20px;
+       color: var(--text-primary); background: var(--surface-bg); }
+.num, .tabular { font-variant-numeric: tabular-nums; }
+
+/* ── App Shell ── */
+.app-shell  { display: flex; height: 100vh; overflow: hidden; }
+.sidebar    { width: 220px; flex-shrink: 0; height: 100vh;
+              background: var(--sidebar-bg);
+              border-right: 1px solid var(--sidebar-border);
+              display: flex; flex-direction: column; overflow: hidden; }
+.main-area  { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.topbar     { flex-shrink: 0; height: 52px; background: white;
+              border-bottom: 1px solid var(--border-subtle);
+              display: flex; align-items: center; justify-content: space-between;
+              padding: 0 24px; gap: 16px; }
+.page-main  { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+/* ── Sidebar ── */
+.sidebar-logo {
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.logo-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--sidebar-accent);
+  font-size: 11px; font-weight: 800; color: white; letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.logo-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.logo-sub  { font-size: 10px; color: var(--text-muted); letter-spacing: .06em;
+             text-transform: uppercase; margin-top: 1px; }
+
+.sidebar-nav  { flex: 1; padding: 10px 8px; overflow-y: auto; }
+.nav-section  { font-size: 9.5px; font-weight: 700; color: var(--text-muted);
+                text-transform: uppercase; letter-spacing: .1em;
+                padding: 10px 8px 5px; margin-top: 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 7px;
+  font-size: 13px; font-weight: 500;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  transition: background .1s, color .1s;
+  margin-bottom: 1px; border-left: 2px solid transparent;
+}
+.nav-item svg { width: 15px; height: 15px; flex-shrink: 0; stroke-width: 1.75; }
+.nav-item:hover { background: var(--sidebar-hover); color: var(--sidebar-text-h); }
+.nav-item.active {
+  background: var(--sidebar-active);
+  color: var(--sidebar-text-a);
+  border-left-color: var(--sidebar-accent);
+  font-weight: 600;
+}
+
+.sidebar-footer {
+  padding: 12px 12px;
+  border-top: 1px solid var(--sidebar-border);
+}
+.user-pill { display: flex; align-items: center; gap: 9px; }
+.user-avatar {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent-bg); color: var(--accent);
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.user-name   { font-size: 12px; font-weight: 600; color: var(--text-primary); line-height: 1.2; }
+.user-handle { font-size: 10.5px; color: var(--text-muted); }
+.logout-btn  { margin-left: auto; font-size: 11px; color: var(--text-muted);
+               text-decoration: none; padding: 3px 7px; border-radius: 5px;
+               transition: all .1s; }
+.logout-btn:hover { color: var(--text-secondary); background: var(--surface-hover); }
+
+/* ── Topbar ── */
+.topbar-title    { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.topbar-subtitle { font-size: 11px; color: var(--text-muted); }
+.topbar-date     { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 13px; border-radius: 7px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  border: none; text-decoration: none; line-height: 1;
+  transition: all .12s; white-space: nowrap;
+}
+.btn svg { width: 13px; height: 13px; }
+.btn-primary  { background: var(--accent); color: white; }
+.btn-primary:hover  { background: #26405C; box-shadow: 0 2px 8px rgba(46,76,107,.25); }
+.btn-secondary{ background: white; color: var(--text-secondary);
+                border: 1px solid var(--border);
+                box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.btn-secondary:hover{ border-color: #D1D5DB; color: var(--text-primary); background: #FAFAFA; }
+.btn-ghost    { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--border-subtle); color: var(--text-primary); }
+.btn-danger   { background: white; color: #B91C1C; border: 1px solid #FECACA; }
+.btn-danger:hover { background: #FEF2F2; }
+.btn-sm  { padding: 5px 10px; font-size: 12px; }
+.btn-xs  { padding: 3px 8px; font-size: 11px; border-radius: 5px; }
+.btn-icon{ padding: 6px; border-radius: 6px; }
+
+/* ── Inputs ── */
+input[type=text], input[type=search], input[type=email],
+input[type=number], input[type=date], input[type=password],
+select, textarea {
+  font-family: inherit; font-size: 13px;
+  color: var(--text-primary); background: white;
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 6px 10px; width: 100%;
+  transition: border-color .12s, box-shadow .12s; outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,76,107,.1);
+}
+textarea { resize: vertical; line-height: 1.5; }
+.field-label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--text-secondary); text-transform: uppercase;
+  letter-spacing: .04em; margin-bottom: 4px;
+}
+.field-group { margin-bottom: 14px; }
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 5px;
+  font-size: 11px; font-weight: 600; line-height: 16px;
+  letter-spacing: .02em; white-space: nowrap;
+}
+
+/* ── Card ── */
+.card { background: white; border-radius: 10px; border: 1px solid var(--border); }
+
+/* ── Table utils ── */
+.trow { transition: background .1s; }
+.trow:hover { background: #FAFAFA; }
+
+/* ── Empty state ── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 60px 20px; text-align: center;
+}
+.empty-icon  { width: 36px; height: 36px; color: var(--text-muted); opacity: .4; margin-bottom: 12px; }
+.empty-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.empty-desc  { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* ── Form section ── */
+.form-section { padding: 20px 24px; border-bottom: 1px solid var(--border-subtle); }
+.form-section:last-child { border-bottom: none; }
+.form-section-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+.form-section-desc  { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
+
+/* ── Divider ── */
+.divider { height: 1px; background: var(--border-subtle); }
+
+/* ── Native Popover (top layer — never clipped by parent overflow) ── */
+.pop-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  background: white;
+  box-shadow: 0 24px 60px rgba(15,23,42,.28);
+  max-width: 92vw;
+  max-height: 86vh;
+  overflow: auto;
+}
+.pop-card::backdrop { background: rgba(15,23,42,.32); }
+.pop-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 15px; line-height: 1;
+  padding: 4px; border-radius: 6px;
+}
+.pop-close:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+
+details > summary { list-style: none; cursor: pointer; }
+details > summary::-webkit-details-marker { display: none; }
+</style>
+</head>
+
+<body>
+<div class="app-shell">
+
+  <!-- ══ Sidebar ══ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">CRM</div>
+      <div class="logo-name">補助顧問</div>
+      <div class="logo-sub">Management</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      {% set p = request.url.path %}
+      <a href="/"         class="nav-item {% if p=='/' %}active{% endif %}">
+        <i data-lucide="inbox"></i> 今日工作台
+      </a>
+      <a href="/clients"  class="nav-item {% if p.startswith('/clients')  %}active{% endif %}">
+        <i data-lucide="users"></i> 客戶管理
+      </a>
+      <a href="/opportunities" class="nav-item {% if p.startswith('/opportunities') %}active{% endif %}">
+        <i data-lucide="target"></i> 商機管理
+      </a>
+      <a href="/projects" class="nav-item {% if p.startswith('/projects') and '/execution' not in p and '/gantt-share' not in p %}active{% endif %}">
+        <i data-lucide="kanban"></i> 案件 Pipeline
+      </a>
+      <a href="/gantt" class="nav-item {% if p.startswith('/gantt') or '/execution' in p or '/gantt-share' in p %}active{% endif %}">
+        <i data-lucide="gantt-chart"></i> 專案甘特圖
+      </a>
+      <a href="/contracts" class="nav-item {% if p.startswith('/contracts') %}active{% endif %}">
+        <i data-lucide="file-signature"></i> 合約管理
+      </a>
+      <a href="/programs" class="nav-item {% if p.startswith('/programs') %}active{% endif %}">
+        <i data-lucide="list-checks"></i> 計畫範本
+      </a>
+      <div style="height:1px;background:var(--sidebar-border);margin:8px 0"></div>
+      <a href="/settings" class="nav-item {% if p.startswith('/settings') %}active{% endif %}">
+        <i data-lucide="settings"></i> 系統設定
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar">{{ (user.name or user.username)[0]|upper }}</div>
+        <div>
+          <div class="user-name">{{ user.name or user.username }}</div>
+          <div class="user-handle">@{{ user.username }}</div>
+        </div>
+        <a href="/logout" class="logout-btn">登出</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══ Main ══ -->
+  <div class="main-area">
+    <header class="topbar">
+      <div style="min-width:0">
+        <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+        <div class="topbar-subtitle">{% block page_subtitle %}{% endblock %}</div>
+      </div>
+      {% block topbar_center %}{% endblock %}
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        {% block header_actions %}{% endblock %}
+
+        {# ── Font-size control ── #}
+        <div style="display:flex;align-items:center;gap:4px;padding:0 4px;border-left:1px solid #EEF0F3;margin-left:2px">
+          <i data-lucide="type" style="width:13px;height:13px;color:#9CA3AF"></i>
+          <button type="button" onclick="stepFontScale(-1)" title="縮小字級"
+                  style="width:24px;height:24px;border:1px solid #E5E7EB;background:white;border-radius:6px;cursor:pointer;color:#6B7280;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center"
+                  onmouseenter="this.style.background='#F3F4F6'" onmouseleave="this.style.background='white'">−</button>
+          <span id="fontScaleLabel" style="font-size:11px;color:#6B7280;width:38px;text-align:center;font-variant-numeric:tabular-nums">100%</span>
+          <button type="button" onclick="stepFontScale(1)" title="放大字級"
+                  style="width:24px;height:24px;border:1px solid #E5E7EB;background:white;border-radius:6px;cursor:pointer;color:#6B7280;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center"
+                  onmouseenter="this.style.background='#F3F4F6'" onmouseleave="this.style.background='white'">+</button>
+        </div>
+
+        <span class="topbar-date">{{ now_date }}</span>
+      </div>
+    </header>
+
+    <main class="page-main" style="{% block main_style %}{% endblock %}">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script>lucide.createIcons();</script>
+
+<!-- ── Global font-size control (persists via localStorage) ── -->
+<script>
+(function(){
+  // Discrete steps from 小 to 特大
+  var STEPS = [0.85, 0.92, 1.0, 1.1, 1.2, 1.35, 1.5];
+
+  function currentIndex(){
+    var v = parseFloat(localStorage.getItem('fontScale') || '1');
+    var best = 2, diff = 99;
+    STEPS.forEach(function(s, i){ var d = Math.abs(s - v); if (d < diff){ diff = d; best = i; } });
+    return best;
+  }
+
+  function apply(scale){
+    document.querySelectorAll('.page-main').forEach(function(el){ el.style.zoom = scale; });
+    var lbl = document.getElementById('fontScaleLabel');
+    if (lbl) lbl.textContent = Math.round(scale * 100) + '%';
+  }
+
+  window.stepFontScale = function(dir){
+    var i = currentIndex();
+    i = Math.max(0, Math.min(STEPS.length - 1, i + dir));
+    var scale = STEPS[i];
+    localStorage.setItem('fontScale', scale);
+    apply(scale);
+  };
+
+  // Apply on every page load
+  apply(STEPS[currentIndex()]);
+})();
+</script>
+</body>
+</html>

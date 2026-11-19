@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}案件管理 · 表格{% endblock %}
+{% block page_title %}案件管理{% endblock %}
+{% block page_subtitle %}表格檢視{% endblock %}
+
+{% block header_actions %}
+<a href="/projects?view=pipeline" class="btn btn-ghost btn-sm" title="Pipeline 看板">
+  <i data-lucide="kanban"></i>
+</a>
+<a href="/projects/add" class="btn btn-primary btn-sm">
+  <i data-lucide="plus"></i> 新增案件
+</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── View switch + filters ── #}
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+  <div style="display:inline-flex;background:#EDEEF1;border-radius:8px;padding:2px">
+    <a href="/projects?view=pipeline"
+       style="padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;color:#6B7280;text-decoration:none">
+      看板
+    </a>
+    <a href="/projects?view=table"
+       style="padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;color:#111827;background:white;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.06)">
+      表格
+    </a>
+  </div>
+
+  <form method="GET" style="display:flex;align-items:center;gap:8px;flex:1">
+    <input type="hidden" name="view" value="table">
+    <div style="position:relative;flex:1;max-width:240px">
+      <i data-lucide="search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:#9CA3AF;pointer-events:none"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="搜尋…" style="padding-left:30px;font-size:12px">
+    </div>
+    <select name="status" style="width:110px;font-size:12px">
+      <option value="">狀態</option>
+      {% for s in statuses %}<option value="{{ s }}" {% if s==sel_status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+    <select name="stage" style="width:130px;font-size:12px">
+      <option value="">階段</option>
+      {% for s in stages %}<option value="{{ s }}" {% if s==sel_stage %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">篩選</button>
+    {% if q or sel_status or sel_stage %}<a href="/projects?view=table" class="btn btn-ghost btn-sm">清除</a>{% endif %}
+  </form>
+</div>
+
+{# ── Table ── #}
+<div class="card" style="overflow:hidden">
+  <div style="padding:10px 18px;border-bottom:1px solid #F3F4F6;background:#FAFAFA;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em">共 {{ projects|length }} 筆</span>
+    <span style="font-size:11px;color:#9CA3AF">逾期 · 7天到期 已標色</span>
+  </div>
+
+  {% if not projects %}
+  <div class="empty-state">
+    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776"/>
+    </svg>
+    <div class="empty-title">尚無案件</div>
+    <a href="/projects/add" style="margin-top:8px;font-size:12px;color:#2E4C6B;text-decoration:none">新增第一個案件 →</a>
+  </div>
+  {% else %}
+
+  <div style="display:grid;grid-template-columns:1.6fr .9fr .9fr 1.4fr 90px 70px;gap:12px;padding:9px 18px;border-bottom:1px solid #F3F4F6;background:#FAFAFA">
+    {% for h in ['客戶 / 專案','補助 / 階段','狀態 / 成交','下一步 / 到期','負責人',''] %}
+    <div style="font-size:10.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">{{ h }}</div>
+    {% endfor %}
+  </div>
+
+  {% for p in projects %}
+  {% set du = days_until(p.next_deadline) %}
+  {% set overdue = is_overdue(p.next_deadline, p.status) %}
+  <div class="trow" style="display:grid;grid-template-columns:1.6fr .9fr .9fr 1.4fr 90px 70px;gap:12px;padding:12px 18px;border-bottom:1px solid #F9FAFB;align-items:start
+    {% if overdue %};background:#FEF6F6{% elif du is not none and du <= 7 %};background:#FFFCF5{% endif %}">
+
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#111827">{{ p.client_name or '—' }}</div>
+      <div style="font-size:11px;color:#9CA3AF;margin-top:1px">{{ p.project_name }}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <span class="badge" style="{{ badge_style(p.subsidy_type) }}">{{ p.subsidy_type or '—' }}</span>
+      <span class="badge" style="{{ badge_style(p.current_stage) }}">{{ p.current_stage }}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <span class="badge" style="{{ badge_style(p.status) }}">{{ p.status }}</span>
+      <span class="badge" style="{{ badge_style(p.deal_status) }}">{{ p.deal_status }}</span>
+    </div>
+    <div>
+      <div style="font-size:11px;color:#6B7280;line-height:1.4">{{ p.next_action or '—' }}</div>
+      {% if du is not none %}
+      <div style="font-size:11px;font-weight:600;margin-top:3px;color:{{ '#9E4A40' if du < 0 else ('#8A6A2F' if du <= 7 else '#9CA3AF') }}">
+        {% if du < 0 %}逾期 {{ -du }} 天{% elif du == 0 %}今天到期{% elif du <= 7 %}{{ du }} 天後{% else %}{{ p.next_deadline }}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <div style="font-size:12px;color:#6B7280">{{ p.owner or '—' }}</div>
+    <div style="display:flex;justify-content:flex-end">
+      <a href="/projects/{{ p.id }}/execution" class="btn btn-secondary btn-xs" style="margin-right:4px">甘特圖</a>
+      <a href="/projects/{{ p.id }}/edit" class="btn btn-ghost btn-xs" style="color:#9CA3AF">編輯</a>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}今日工作台{% endblock %}
+{% block page_title %}今日工作台{% endblock %}
+{% block page_subtitle %}追蹤今天該處理的客戶與案件{% endblock %}
+
+{% block content %}
+
+{# ── Summary strip ── #}
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:28px">
+
+{% set tiles = [
+  ("today",   "今日到期",    "#9E4A40", "今天截止"),
+  ("overdue", "已逾期",      "#9E4A40", "需立即處理"),
+  ("week",    "7 天內到期",  "#8A6A2F", "本週注意"),
+  ("contact", "未聯絡 >7天", "#6B675E", "記得跟進"),
+  ("waiting", "等待客戶",    "#2E4C6B", "等待回覆"),
+  ("quoted",  "已報價",      "#3F6B52", "待成交"),
+] %}
+
+{% for key, label, accent, hint in tiles %}
+{% set n = counts.get(key, 0) %}
+<div style="
+  background:white;
+  border:1px solid #F3F4F6;
+  border-radius:10px;
+  padding:16px;
+  border-top:2px solid {{ accent if n > 0 else '#F3F4F6' }};
+">
+  <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+    {{ label }}
+  </div>
+  <div style="font-size:28px;font-weight:700;color:{{ accent if n > 0 else '#D1D5DB' }};letter-spacing:-0.02em;line-height:1">
+    {{ n }}
+  </div>
+  <div style="font-size:11px;color:#9CA3AF;margin-top:5px">
+    {{ hint if n > 0 else '目前無' }}
+  </div>
+</div>
+{% endfor %}
+
+</div>
+
+{# ── Task groups ── #}
+{% set urgency_colors = {
+  "today":   "#9E4A40",
+  "overdue": "#9E4A40",
+  "week":    "#8A6A2F",
+  "contact": "#6B675E",
+  "waiting": "#2E4C6B",
+  "quoted":  "#3F6B52",
+} %}
+{% set has_any = namespace(v=false) %}
+
+{% for key, label, accent, items in groups %}
+{% if items %}
+{% set has_any.v = true %}
+
+{# Group label #}
+<div style="
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;color:#9CA3AF;
+  text-transform:uppercase;letter-spacing:.08em;
+  margin-bottom:8px;margin-top:20px;
+">
+  <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{{ accent }}"></span>
+  {{ label }}
+  <span style="font-weight:600;color:#D1D5DB">&middot; {{ items|length }}</span>
+</div>
+
+{# Task items #}
+{% for p in items %}
+{% set du = days_until(p.next_deadline) %}
+{% if du is none %}
+  {% set due_txt = p.next_deadline or '—' %}
+  {% set due_color = '#9CA3AF' %}
+{% elif du < 0 %}
+  {% set due_txt = '逾期 ' ~ (-du)|string ~ ' 天' %}
+  {% set due_color = '#9E4A40' %}
+{% elif du == 0 %}
+  {% set due_txt = '今天到期' %}
+  {% set due_color = '#8A6A2F' %}
+{% elif du <= 7 %}
+  {% set due_txt = '還有 ' ~ du|string ~ ' 天' %}
+  {% set due_color = '#8A6A2F' %}
+{% else %}
+  {% set due_txt = p.next_deadline %}
+  {% set due_color = '#9CA3AF' %}
+{% endif %}
+
+<div style="
+  background:white;
+  border:1px solid #F3F4F6;
+  border-radius:8px;
+  margin-bottom:3px;
+  display:flex;
+  align-items:stretch;
+  overflow:hidden;
+  transition:box-shadow .12s, border-color .12s;
+"
+onmouseenter="this.style.borderColor='#E5E7EB';this.style.boxShadow='0 2px 8px rgba(0,0,0,.06)'"
+onmouseleave="this.style.borderColor='#F3F4F6';this.style.boxShadow='none'"
+>
+  {# Priority stripe #}
+  <div style="width:3px;background:{{ accent }};flex-shrink:0"></div>
+
+  {# Content #}
+  <div style="flex:1;padding:13px 16px;display:flex;align-items:flex-start;gap:16px;min-width:0">
+
+    {# Left: client + project + action #}
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700;color:#111827">{{ p.client_name or '—' }}</span>
+        <span style="font-size:12px;color:#9CA3AF">{{ p.project_name }}</span>
+      </div>
+      {% if p.next_action %}
+      <div style="font-size:12px;color:#6B7280;margin-top:4px;line-height:1.5">
+        {{ p.next_action }}
+      </div>
+      {% endif %}
+    </div>
+
+    {# Right: badges + meta #}
+    {% set waited = days_since(p.last_contact_date) %}
+    <div style="flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+      <span class="badge" style="{{ badge_style(p.current_stage) }}">{{ p.current_stage }}</span>
+      <div style="font-size:11px;font-weight:600;color:{{ due_color }}">{{ due_txt }}</div>
+      {% if waited is not none and waited >= followup_days %}
+      <div style="font-size:11px;font-weight:600;color:#8A6A2F;display:flex;align-items:center;gap:3px">
+        <i data-lucide="bell-ring" style="width:11px;height:11px"></i> 已等待 {{ waited }} 天
+      </div>
+      {% elif p.last_contact_date %}
+      <div style="font-size:11px;color:#9CA3AF">聯絡 {{ p.last_contact_date }}</div>
+      {% endif %}
+    </div>
+
+    {# Actions: 催詢 + 更新 — 使用原生 Popover API，彈窗渲染在最上層，不會被卡片裁切 #}
+    <div style="flex-shrink:0;padding-top:2px;display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+
+      {# Follow-up message generator #}
+      <button type="button" class="btn btn-secondary btn-xs" style="white-space:nowrap" popovertarget="fu-{{ p.id }}">催詢</button>
+      <div id="fu-{{ p.id }}" popover class="pop-card" style="width:380px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-size:13px;font-weight:600;color:#374151">催詢訊息 · {{ p.client_name }}</div>
+          <button type="button" class="pop-close" popovertarget="fu-{{ p.id }}" popovertargetaction="hide">✕</button>
+        </div>
+        <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px">
+          可直接複製貼上傳給客戶（LINE / Email 皆可）
+        </div>
+        <textarea readonly rows="8"
+                  style="font-size:12px;line-height:1.6;width:100%;background:#FAFAFA;color:#374151;resize:vertical"
+                  onclick="this.select()">{{ followups.get(p.id, '') }}</textarea>
+        <button type="button" class="btn btn-primary"
+                style="width:100%;justify-content:center;font-size:12px;margin-top:10px"
+                onclick="copyFollowup(this)">
+          <i data-lucide="copy" style="width:13px;height:13px"></i> 複製訊息
+        </button>
+      </div>
+
+      {# Quick update #}
+      <button type="button" class="btn btn-secondary btn-xs" style="white-space:nowrap" popovertarget="qu-{{ p.id }}">更新</button>
+      <div id="qu-{{ p.id }}" popover class="pop-card" style="width:340px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:13px;font-weight:600;color:#374151">快速更新 · {{ p.client_name }}</div>
+          <button type="button" class="pop-close" popovertarget="qu-{{ p.id }}" popovertargetaction="hide">✕</button>
+        </div>
+        <form method="POST" action="/projects/{{ p.id }}/quick-update">
+          <div class="field-group">
+            <label class="field-label">下一步行動</label>
+            <textarea name="next_action" rows="2" style="font-size:12px">{{ p.next_action or '' }}</textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div>
+              <label class="field-label">到期日</label>
+              <input type="date" name="next_deadline" value="{{ p.next_deadline or '' }}" style="font-size:12px">
+            </div>
+            <div>
+              <label class="field-label">最近聯繫</label>
+              <input type="date" name="last_contact_date" value="{{ p.last_contact_date or '' }}" style="font-size:12px">
+            </div>
+          </div>
+          <input type="hidden" name="current_stage" value="{{ p.current_stage }}">
+          <input type="hidden" name="status" value="{{ p.status }}">
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;font-size:12px">
+            儲存
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+{% if not has_any.v %}
+<div class="empty-state" style="margin-top:40px">
+  <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path stroke-linecap="round" stroke-linejoin="round"
+          d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+  </svg>
+  <div class="empty-title">目前沒有需要處理的事項</div>
+  <div class="empty-desc">所有案件都在良好狀態，繼續保持</div>
+</div>
+{% endif %}
+
+<script>
+function copyFollowup(btn){
+  var box = btn.parentElement.querySelector('textarea');
+  if(!box) return;
+  box.select();
+  var done = function(){
+    var orig = btn.innerHTML;
+    btn.innerHTML = '✓ 已複製';
+    btn.style.background = '#3F6B52';
+    setTimeout(function(){ btn.innerHTML = orig; btn.style.background=''; if(window.lucide) lucide.createIcons(); }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(box.value).then(done, function(){ document.execCommand('copy'); done(); });
+  } else {
+    document.execCommand('copy'); done();
+  }
+}
+</script>
+
+{% endblock %}

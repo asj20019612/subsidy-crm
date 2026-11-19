@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}編輯商機{% endblock %}
+{% block page_title %}編輯商機{% endblock %}
+{% block page_subtitle %}{{ opp.company_name }}{% endblock %}
+{% block header_actions %}
+<a href="/opportunities" class="btn btn-secondary btn-sm"><i data-lucide="arrow-left"></i> 返回</a>
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="/opportunities/{{ opp.id }}/edit" style="max-width:680px;margin:0 auto">
+<div class="card" style="overflow:hidden">
+  <div class="form-section">
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
+      <div><label class="field-label">客戶 *</label>
+        <select name="client_id" required>
+          <option value="">— 選擇客戶 —</option>
+          {% for c in clients %}<option value="{{ c.id }}" {% if opp.client_id==c.id %}selected{% endif %}>{{ c.company_name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label class="field-label">狀態</label>
+        <select name="status">{% for s in statuses %}<option value="{{ s }}" {% if opp.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+      <div><label class="field-label">聯絡窗口</label><input type="text" name="contact_name" value="{{ opp.contact_name }}"></div>
+      <div><label class="field-label">電話</label><input type="text" name="contact_phone" value="{{ opp.contact_phone }}"></div>
+      <div><label class="field-label">Email</label><input type="email" name="contact_email" value="{{ opp.contact_email }}"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+      <div><label class="field-label">想申請補助</label>
+        <select name="subsidy_type"><option value="">—</option>{% for s in subsidy_types %}<option value="{{ s }}" {% if opp.subsidy_type==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+      </div>
+      <div><label class="field-label">預估金額</label><input type="number" name="est_amount" min="0" step="10000" value="{{ opp.est_amount or 0 }}"></div>
+      <div><label class="field-label">來源</label>
+        <select name="source"><option value="">—</option>{% for s in sources %}<option value="{{ s }}" {% if opp.source==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px">
+      <div><label class="field-label">下一步</label><input type="text" name="next_action" value="{{ opp.next_action or '' }}"></div>
+      <div><label class="field-label">下一步日期</label><input type="date" name="next_date" value="{{ opp.next_date or '' }}"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px">
+      <div><label class="field-label">負責人</label><input type="text" name="owner" value="{{ opp.owner or '' }}"></div>
+    </div>
+    <div style="margin-top:14px"><label class="field-label">備註</label><textarea name="notes" rows="3">{{ opp.notes or '' }}</textarea></div>
+  </div>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;margin-top:18px">
+  <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> 儲存變更</button>
+  <a href="/opportunities" class="btn btn-secondary">取消</a>
+  {% if opp.status == '已簽約' and not opp.converted_project_id %}
+  <form method="POST" action="/opportunities/{{ opp.id }}/convert" onsubmit="return confirm('轉為正式案件？')">
+    <button type="submit" class="btn btn-primary"><i data-lucide="arrow-right-circle"></i> 轉為案件</button>
+  </form>
+  {% endif %}
+  {% if opp.converted_project_id %}
+  <a href="/projects/{{ opp.converted_project_id }}/execution" class="btn btn-secondary">已轉案 → 查看案件</a>
+  {% endif %}
+  <div style="margin-left:auto">
+    <button type="button" class="btn btn-danger" onclick="if(confirm('刪除此商機？')){document.getElementById('del').submit()}"><i data-lucide="trash-2"></i> 刪除</button>
+  </div>
+</div>
+</form>
+<form id="del" method="POST" action="/opportunities/{{ opp.id }}/delete" style="display:none"></form>
+{% endblock %}

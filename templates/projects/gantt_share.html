@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ project.client_name }} 專案時程 · 甘特圖</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#F1EFEA;--ink:#24231F;--ink2:#6B675E;--ink3:#9A948A;--line:#E7E3DD;--line2:#F1EFEA;--accent:#2E4C6B}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);font-family:'Noto Sans TC','Inter',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;padding:24px 16px 60px}
+
+  /* ── 工具列（不會被截進圖片）── */
+  .toolbar{max-width:1180px;margin:0 auto 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .toolbar .sp{flex:1}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);font:600 13px 'Noto Sans TC',sans-serif;cursor:pointer;text-decoration:none}
+  .btn:hover{background:#F7F6F3}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:#26405C}
+  .btn[disabled]{opacity:.6;cursor:wait}
+  .opt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);cursor:pointer;user-select:none}
+  .tip{max-width:1180px;margin:0 auto 14px;font-size:12px;color:var(--ink3)}
+
+  /* ── 圖片本體 ── */
+  #sheet{width:1180px;max-width:100%;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:44px 48px 34px;overflow:hidden}
+  .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:26px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase;margin-bottom:10px}
+  .client{font-size:28px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+  .proj{font-size:15px;color:var(--ink2);margin-top:6px}
+  .meta{display:flex;gap:34px;flex-shrink:0;text-align:right}
+  .meta .k{font-size:11px;color:var(--ink3);letter-spacing:.06em;margin-bottom:6px}
+  .meta .v{font-size:22px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .meta .v small{font-size:13px;color:var(--ink3);font-weight:500;margin-left:2px}
+  .meta .d{font-size:14px;font-weight:600;padding-top:6px;font-variant-numeric:tabular-nums}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:18px 0 4px}
+  .lg{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)}
+  .lg i{width:11px;height:11px;border-radius:3px;display:block}
+
+  .chart{margin-top:18px;display:flex}
+  .labels{width:250px;flex-shrink:0}
+  .lh{height:50px}
+  .lrow{height:46px;display:flex;flex-direction:column;justify-content:center;padding-right:14px;border-top:1px solid var(--line2)}
+  .lrow .n{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lrow .p{font-size:11px;color:var(--ink3);margin-top:2px}
+  .tl{flex:1;position:relative;min-width:0}
+  .th{height:50px;position:relative;border-bottom:1px solid var(--line)}
+  .mo{position:absolute;top:0;height:26px;display:flex;align-items:center;padding-left:8px;font-size:11.5px;font-weight:700;color:var(--ink2);border-left:1px solid var(--line);white-space:nowrap;overflow:hidden}
+  .wk{position:absolute;top:26px;height:24px;display:flex;align-items:center;padding-left:5px;font-size:10px;color:var(--ink3);font-variant-numeric:tabular-nums}
+  .body{position:relative}
+  .grid{position:absolute;top:0;bottom:0;width:1px;background:var(--line2)}
+  .row{height:46px;position:relative;border-top:1px solid var(--line2)}
+  .bar{position:absolute;top:10px;height:26px;border-radius:7px;overflow:hidden}
+  .bar .fill{position:absolute;left:0;top:0;bottom:0;opacity:.85}
+  .bar .pc{position:relative;z-index:1;font-size:11px;font-weight:700;padding:0 9px;line-height:24px;white-space:nowrap}
+  .dl{position:absolute;top:0;height:46px;display:flex;align-items:center;font-size:11px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .today{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed #9E4A40;z-index:3}
+  .today span{position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);background:#9E4A40;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
+  .hide-today .today{display:none}
+  .hide-pc .pc{display:none}
+
+  .ft{display:flex;justify-content:space-between;align-items:center;margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink3)}
+  .ft b{color:var(--ink2);font-weight:600}
+  .empty{padding:80px 0;text-align:center;color:var(--ink3);font-size:14px}
+  @media print{body{background:#fff;padding:0}.toolbar,.tip{display:none}#sheet{border:0;border-radius:0}}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <a href="/projects/{{ project.id }}/execution" class="btn">← 回到甘特圖</a>
+  <span class="sp"></span>
+  <label class="opt"><input type="checkbox" id="optPc" checked> 顯示進度 %</label>
+  <label class="opt"><input type="checkbox" id="optToday" checked> 顯示「今天」線</label>
+  <button class="btn" onclick="window.print()">列印 / 存 PDF</button>
+  <button class="btn primary" id="dl" {% if not rows %}disabled{% endif %}>下載圖片 (PNG)</button>
+</div>
+<div class="tip">下面就是會輸出的圖片。可先在上方勾選要顯示的內容，再按「下載圖片」，直接傳給客戶即可。</div>
+
+<div id="sheet">
+  <div class="hd">
+    <div>
+      <div class="eyebrow">專案時程表 · Project Timeline</div>
+      <div class="client">{{ project.client_name or '—' }}</div>
+      <div class="proj">{{ project.project_name }}{% if project.subsidy_type %} · {{ project.subsidy_type }}{% endif %}</div>
+    </div>
+    <div class="meta">
+      {% if rows %}
+      <div><div class="k">專案期間</div>
+        <div class="d">{{ range_start.strftime('%Y/%m/%d') }}<br>– {{ range_end.strftime('%Y/%m/%d') }}</div></div>
+      <div><div class="k">整體進度</div><div class="v">{{ avg }}<small>%</small></div></div>
+      <div><div class="k">工作項目</div><div class="v">{{ rows|length }}<small>項</small></div></div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not rows %}
+  <div class="empty">這個案件還沒有排定日期的任務，請先回到甘特圖頁新增任務。</div>
+  {% else %}
+
+  {% if legend %}
+  <div class="legend">
+    {% for l in legend %}<span class="lg"><i style="background:{{ l.fg }}"></i>{{ l.name }}</span>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="chart">
+    <div class="labels">
+      <div class="lh"></div>
+      {% for r in rows %}
+      <div class="lrow">
+        <div class="n" title="{{ r.t.name }}">{{ r.t.name }}</div>
+        {% if r.t.phase or r.t.owner %}<div class="p">{{ r.t.phase }}{% if r.t.phase and r.t.owner %} · {% endif %}{% if r.t.owner %}{{ r.t.owner }}{% endif %}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="tl">
+      <div class="th">
+        {% for m in months %}<div class="mo" style="left:{{ m.left }}%;width:{{ m.width }}%">{{ m.name }}</div>{% endfor %}
+        {% for w in weeks %}<div class="wk" style="left:{{ w.left }}%">{{ w.label }}</div>{% endfor %}
+      </div>
+      <div class="body">
+        {% for w in weeks %}<div class="grid" style="left:{{ w.left }}%"></div>{% endfor %}
+        {% if today_pct is not none %}<div class="today" style="left:{{ today_pct }}%"><span>今天 {{ today.month }}/{{ today.day }}</span></div>{% endif %}
+        {% for r in rows %}
+        <div class="row">
+          <div class="bar" style="left:{{ r.left }}%;width:{{ r.width }}%;background:{{ r.bg }};border:1px solid {{ r.bd }}">
+            <div class="fill" style="width:{{ r.t.progress or 0 }}%;background:{{ r.bd }}"></div>
+            <span class="pc" style="color:{{ r.fg }}">{{ r.t.progress or 0 }}%</span>
+          </div>
+          {% if r.left + r.width > 76 %}
+          <span class="dl" style="right:{{ 100 - r.left + 0.6 }}%">{{ r.label }}</span>
+          {% else %}
+          <span class="dl" style="left:{{ r.left + r.width + 0.6 }}%">{{ r.label }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="ft">
+    <span>{% if consultant %}製表：<b>{{ consultant }}</b>{% else %}&nbsp;{% endif %}</span>
+    <span>製表日期 {{ today.strftime('%Y/%m/%d') }}</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function(){
+  var sheet = document.getElementById('sheet');
+  var btn = document.getElementById('dl');
+  function bind(id, cls, invert){
+    var el = document.getElementById(id);
+    function apply(){ sheet.classList.toggle(cls, invert ? !el.checked : el.checked); }
+    el.addEventListener('change', apply); apply();
+  }
+  bind('optPc', 'hide-pc', true);
+  bind('optToday', 'hide-today', true);
+
+  var fname = {{ ((project.client_name or '專案') ~ '_專案時程_' ~ today.strftime('%Y%m%d'))|tojson }};
+  btn.addEventListener('click', function(){
+    if (typeof html2canvas === 'undefined') { alert('圖片工具載入失敗，請確認網路後重新整理頁面。'); return; }
+    var old = btn.textContent; btn.disabled = true; btn.textContent = '產生中…';
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function(){
+      return html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false});
+    }).then(function(canvas){
+      var a = document.createElement('a');
+      a.download = fname + '.png';
+      a.href = canvas.toDataURL('image/png');
+      document.body.appendChild(a); a.click(); a.remove();
+    }).catch(function(){ alert('產生圖片失敗，請改用「列印 / 存 PDF」。'); })
+      .finally(function(){ btn.disabled = false; btn.textContent = old; });
+  });
+})();
+</script>
+</body>
+</html>

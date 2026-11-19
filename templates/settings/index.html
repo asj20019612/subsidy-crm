@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}系統設定{% endblock %}
+{% block page_title %}系統設定{% endblock %}
+{% block page_subtitle %}帳號、顧問資訊與下拉選單管理{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+
+  {# ── Users ── #}
+  <div id="users" class="card" style="overflow:hidden">
+    <div class="form-section" style="border-bottom:1px solid #F3F4F6">
+      <div class="form-section-title">帳號管理</div>
+      <div class="form-section-desc">管理可登入系統的團隊成員</div>
+      {% if request.query_params.get('pw') == 'ok' %}
+      <div style="margin-bottom:12px;padding:8px 12px;border-radius:6px;background:#EAF1EC;color:#3F6B52;font-size:12.5px">密碼已更新，下次登入請用新密碼。</div>
+      {% elif request.query_params.get('pw') == 'short' %}
+      <div style="margin-bottom:12px;padding:8px 12px;border-radius:6px;background:#F6ECEA;color:#9E4A40;font-size:12.5px">密碼至少要 8 碼，請重新輸入。</div>
+      {% endif %}
+
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px">
+        {% for u in users %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #F3F4F6;border-radius:8px">
+          <div style="display:flex;align-items:center;gap:11px">
+            <div style="width:30px;height:30px;border-radius:50%;background:#ECF1F6;color:#2E4C6B;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">
+              {{ (u.name or u.username)[0]|upper }}
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#111827">{{ u.name or u.username }}</div>
+              <div style="font-size:11px;color:#9CA3AF">@{{ u.username }}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="badge" style="{{ 'background:#EAF1EC;color:#3F6B52' if u.is_active else 'background:#EFEDE7;color:#6B675E' }}">
+              {{ '啟用' if u.is_active else '停用' }}
+            </span>
+            <form method="POST" action="/settings/users/{{ u.id }}/password" style="display:flex;gap:6px">
+              <input type="password" name="new_password" placeholder="新密碼（至少 8 碼）" minlength="8" required style="width:170px;font-size:12px">
+              <button type="submit" class="btn btn-secondary btn-xs">{{ '改密碼' if u.id == user.id else '重設密碼' }}</button>
+            </form>
+            {% if u.id != user.id %}
+            <form method="POST" action="/settings/users/{{ u.id }}/toggle">
+              <button type="submit" class="btn btn-secondary btn-xs">{{ '停用' if u.is_active else '啟用' }}</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="border-top:1px solid #F3F4F6;padding-top:16px">
+        <div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">新增帳號</div>
+        <form method="POST" action="/settings/users/add" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
+          <div><label class="field-label">帳號</label><input type="text" name="username" required></div>
+          <div><label class="field-label">姓名</label><input type="text" name="name"></div>
+          <div><label class="field-label">密碼</label><input type="password" name="password" required></div>
+          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> 新增</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── Consultant profile ── #}
+  <div id="profile" class="card" style="overflow:hidden">
+    <div class="form-section">
+      <div class="form-section-title">顧問資訊</div>
+      <div class="form-section-desc">用於產生合約的乙方資料</div>
+      <form method="POST" action="/settings/profile/save" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><label class="field-label">顧問姓名</label><input type="text" name="name" value="{{ profile.name if profile else '' }}"></div>
+        <div><label class="field-label">顧問地址</label><input type="text" name="address" value="{{ profile.address if profile else '' }}"></div>
+        <div><label class="field-label">銀行名稱</label><input type="text" name="bank" value="{{ profile.bank if profile else '' }}"></div>
+        <div><label class="field-label">銀行帳號</label><input type="text" name="account" value="{{ profile.account if profile else '' }}"></div>
+        <div style="grid-column:1/3"><button type="submit" class="btn btn-primary"><i data-lucide="save"></i> 儲存</button></div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Dropdowns ── #}
+  <div id="dropdowns" class="card" style="overflow:hidden">
+    <div class="form-section">
+      <div class="form-section-title">下拉選單管理</div>
+      <div class="form-section-desc">自訂各欄位的選項內容</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        {% for cat in manage_cats %}
+        <details style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden">
+          <summary style="padding:10px 14px;background:#FAFAFA;cursor:pointer;font-size:12px;font-weight:600;color:#374151;display:flex;align-items:center;justify-content:space-between">
+            <span>{{ cat }}</span>
+            <span style="font-size:11px;color:#9CA3AF;font-weight:400">{{ cats.get(cat, [])|length }} 個選項</span>
+          </summary>
+          <div style="padding:12px 14px">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+              {% for s in cats.get(cat, []) %}
+              <div style="display:inline-flex;align-items:center;gap:5px;background:#F3F4F6;border-radius:6px;padding:3px 8px">
+                <span style="font-size:12px;color:#374151">{{ s.value }}</span>
+                <form method="POST" action="/settings/dropdown/{{ s.id }}/delete" style="display:inline" onsubmit="return confirm('刪除 {{ s.value }}？')">
+                  <button type="submit" style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:13px;line-height:1;padding:0">×</button>
+                </form>
+              </div>
+              {% endfor %}
+            </div>
+            <form method="POST" action="/settings/dropdown/add" style="display:flex;gap:8px">
+              <input type="hidden" name="category" value="{{ cat }}">
+              <input type="text" name="value" placeholder="新增選項…" required style="flex:1;font-size:12px">
+              <button type="submit" class="btn btn-secondary btn-sm"><i data-lucide="plus"></i></button>
+            </form>
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

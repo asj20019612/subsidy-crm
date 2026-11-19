@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}計畫範本{% endblock %}
+{% block page_title %}計畫範本{% endblock %}
+{% block page_subtitle %}各補助計畫的任務與文件範本，建案件時可一鍵帶入{% endblock %}
+{% block header_actions %}
+<a href="/programs/add" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> 新增計畫</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="background:#ECF1F6;border:1px solid #CBD8E5;border-radius:8px;padding:10px 14px;margin-bottom:18px;display:flex;align-items:center;gap:8px">
+  <i data-lucide="info" style="width:14px;height:14px;color:#2E4C6B;flex-shrink:0"></i>
+  <span style="font-size:12px;color:#3A567A">在每個計畫裡設定好「標準任務」與「要收的文件」，之後建立案件時到「專案執行」頁可一鍵套用，不用每次重打。</span>
+</div>
+
+{% if not rows %}
+<div class="card">
+  <div class="empty-state">
+    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
+    </svg>
+    <div class="empty-title">尚無計畫範本</div>
+    <a href="/programs/add" style="margin-top:8px;font-size:12px;color:#2E4C6B;text-decoration:none">新增第一個計畫 →</a>
+  </div>
+</div>
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
+  {% for row in rows %}
+  {% set prog = row.p %}
+  <a href="/programs/{{ prog.id }}/edit" style="text-decoration:none">
+  <div class="card" style="padding:16px 18px;transition:box-shadow .12s,border-color .12s"
+       onmouseenter="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)';this.style.borderColor='#CBD8E5'"
+       onmouseleave="this.style.boxShadow='';this.style.borderColor='#E7E3DD'">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div style="min-width:0">
+        <div style="font-size:15px;font-weight:700;color:#111827">{{ prog.name }}</div>
+        {% if prog.full_name %}<div style="font-size:12px;color:#6B7280;margin-top:2px">{{ prog.full_name }}</div>{% endif %}
+        {% if prog.agency %}<div style="font-size:11px;color:#9CA3AF;margin-top:2px">{{ prog.agency }}</div>{% endif %}
+      </div>
+      <i data-lucide="chevron-right" style="width:16px;height:16px;color:#C4CAD4;flex-shrink:0"></i>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <span style="font-size:11px;color:#2E4C6B;background:#ECF1F6;padding:3px 9px;border-radius:5px;font-weight:600">任務範本 {{ row.n_tasks }}</span>
+      <span style="font-size:11px;color:#3F6B52;background:#EAF1EC;padding:3px 9px;border-radius:5px;font-weight:600">文件範本 {{ row.n_docs }}</span>
+    </div>
+  </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

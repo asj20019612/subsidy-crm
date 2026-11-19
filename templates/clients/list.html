@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}客戶管理{% endblock %}
+{% block page_title %}客戶管理{% endblock %}
+{% block page_subtitle %}共 {{ clients|length }} 位客戶{% endblock %}
+{% block header_actions %}
+<form method="GET" style="display:flex;align-items:center;gap:6px">
+  <div style="position:relative">
+    <i data-lucide="search" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9CA3AF;pointer-events:none"></i>
+    <input type="text" name="q" value="{{ q }}" placeholder="搜尋客戶…" style="width:200px;padding-left:30px;font-size:13px">
+  </div>
+  {% if q %}<a href="/clients" class="btn btn-ghost btn-sm">清除</a>{% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+
+{# ── 快速新增（打完一個馬上打下一個）── #}
+<div class="card" style="padding:14px 18px;margin-bottom:16px;background:#FbFcFe">
+  <div style="font-size:12px;font-weight:600;color:#2E4C6B;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+    <i data-lucide="zap" style="width:13px;height:13px"></i> 快速新增客戶（只要填公司名稱就能建，其他可之後補）
+  </div>
+  <form method="POST" action="/clients/add" style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 80px auto;gap:8px;align-items:end">
+    <div>
+      <label class="field-label">公司名稱 *</label>
+      <input type="text" name="company_name" required autofocus placeholder="公司名稱">
+    </div>
+    <div>
+      <label class="field-label">聯絡窗口</label>
+      <input type="text" name="contact_name" placeholder="選填">
+    </div>
+    <div>
+      <label class="field-label">電話</label>
+      <input type="text" name="contact_phone" placeholder="選填">
+    </div>
+    <div>
+      <label class="field-label">等級</label>
+      <select name="client_grade">
+        {% for g in grades %}<option value="{{ g }}" {% if g=='C' %}selected{% endif %}>{{ g }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> 新增</button>
+  </form>
+</div>
+
+{# ── 客戶列表 ── #}
+{% if not clients %}
+<div class="card">
+  <div class="empty-state">
+    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+    </svg>
+    <div class="empty-title">{% if q %}找不到符合的客戶{% else %}尚無客戶{% endif %}</div>
+    <div class="empty-desc">{% if q %}換個關鍵字試試{% else %}用上方「快速新增」開始建立{% endif %}</div>
+  </div>
+</div>
+{% else %}
+<div class="card" style="overflow:hidden">
+  {% for c in clients %}
+  {% set refs = referrers.get(c.id, []) %}
+  <a href="/clients/{{ c.id }}/edit" style="text-decoration:none;display:block">
+  <div style="display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid #F6F7F9;transition:background .1s"
+       onmouseenter="this.style.background='#FAFBFC'" onmouseleave="this.style.background='transparent'">
+
+    {# 等級圓標 #}
+    <div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;{{ badge_style(c.client_grade) }}">
+      {{ c.client_grade }}
+    </div>
+
+    {# 公司 + 窗口 #}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:600;color:#111827">{{ c.company_name }}</div>
+      <div style="font-size:12px;color:#9CA3AF;margin-top:1px">
+        {% if c.contact_name %}{{ c.contact_name }}{% endif %}{% if c.contact_phone %} · {{ c.contact_phone }}{% endif %}{% if not c.contact_name and not c.contact_phone %}—{% endif %}
+      </div>
+    </div>
+
+    {# 摘要 #}
+    <div style="flex:1;min-width:0;font-size:12.5px;color:#6B7280">{{ c.summary or '' }}</div>
+
+    {# 引薦人 #}
+    <div style="width:120px;flex-shrink:0;font-size:12px;color:#9CA3AF">
+      {% if c.referred_by %}👤 {{ c.referred_by }}{% elif refs %}👤 {{ refs[0].name }}{% endif %}
+    </div>
+
+    <i data-lucide="chevron-right" style="width:15px;height:15px;color:#D1D5DB;flex-shrink:0"></i>
+  </div>
+  </a>
+  {% endfor %}
+</div>
+<div style="font-size:11px;color:#C4CAD4;text-align:center;margin-top:12px">點任一列即可編輯完整資料</div>
+{% endif %}
+{% endblock %}

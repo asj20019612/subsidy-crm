@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}{{ '編輯計畫' if program else '新增計畫' }}{% endblock %}
+{% block page_title %}{{ '編輯補助計畫' if program else '新增補助計畫' }}{% endblock %}
+{% block page_subtitle %}{{ program.name if program else '建立計畫範本' }}{% endblock %}
+{% block header_actions %}
+<a href="/programs" class="btn btn-secondary btn-sm"><i data-lucide="arrow-left"></i> 返回</a>
+{% endblock %}
+
+{% block content %}
+{% set action = '/programs/' ~ program.id ~ '/edit' if program else '/programs/add' %}
+
+<form method="POST" action="{{ action }}" style="max-width:820px;margin:0 auto">
+<div class="card" style="overflow:hidden">
+  <div class="form-section">
+    <div class="form-section-title">計畫名稱</div>
+    <div style="display:grid;grid-template-columns:1fr 2fr 1.5fr;gap:14px">
+      <div>
+        <label class="field-label">簡稱 *</label>
+        <input type="text" name="name" required value="{{ program.name if program else '' }}" placeholder="如 SBIR">
+      </div>
+      <div>
+        <label class="field-label">全名</label>
+        <input type="text" name="full_name" value="{{ program.full_name if program else '' }}" placeholder="如 小型企業創新研發計畫">
+      </div>
+      <div>
+        <label class="field-label">主辦單位</label>
+        <input type="text" name="agency" value="{{ program.agency if program else '' }}" placeholder="選填">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;margin-top:18px">
+  <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> {{ '儲存變更' if program else '新增計畫' }}</button>
+  <a href="/programs" class="btn btn-secondary">取消</a>
+  {% if program %}
+  <div style="margin-left:auto">
+    <button type="button" class="btn btn-danger"
+            onclick="if(confirm('確認刪除此補助計畫？')){document.getElementById('del-form').submit()}">
+      <i data-lucide="trash-2"></i> 刪除
+    </button>
+  </div>
+  {% endif %}
+</div>
+</form>
+
+{% if program %}
+<form id="del-form" method="POST" action="/programs/{{ program.id }}/delete" style="display:none"></form>
+
+{# ══════════ 任務／文件範本 ══════════ #}
+<div id="tpl" style="max-width:820px;margin:22px auto 0">
+  <div style="background:#ECF1F6;border:1px solid #CBD8E5;border-radius:10px;padding:12px 16px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:700;color:#2E4C6B;margin-bottom:2px">執行範本</div>
+    <div style="font-size:12px;color:#3A567A">在這裡設定好這個補助的「標準任務」與「要收的文件」，之後建立案件時可一鍵帶入，不用每次重打。</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    {# 任務範本 #}
+    <div class="card" style="overflow:hidden">
+      <div style="padding:12px 16px;border-bottom:1px solid #F3F4F6"><span style="font-size:13px;font-weight:600">工作任務範本</span></div>
+      {% if prog_tasks %}
+      {% for t in prog_tasks %}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #F9FAFB">
+        <div style="min-width:0">
+          <div style="font-size:12.5px;font-weight:500;color:#111827">{{ t.name }}</div>
+          <div style="font-size:11px;color:#9CA3AF">第 {{ t.offset_days }} 天開始 · 持續 {{ t.duration }} 天{% if t.phase %} · {{ t.phase }}{% endif %}</div>
+        </div>
+        <form method="POST" action="/programs/{{ program.id }}/tpl-task/{{ t.id }}/delete">
+          <button type="submit" class="btn btn-ghost btn-xs" style="color:#9CA3AF" onclick="return confirm('刪除？')">✕</button>
+        </form>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="padding:16px;text-align:center;font-size:12px;color:#9CA3AF">尚無任務範本</div>
+      {% endif %}
+      <form method="POST" action="/programs/{{ program.id }}/tpl-task/add" style="padding:12px 16px;background:#FCFCFD;border-top:1px solid #F3F4F6">
+        <input type="text" name="name" placeholder="任務名稱" required style="margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+          <select name="phase" title="工作階段（在 系統設定 統一管理）">
+            <option value="">階段</option>
+            {% for ph in phases %}<option>{{ ph }}</option>{% endfor %}
+          </select>
+          <input type="number" name="offset_days" placeholder="第幾天" value="0" title="相對起始日第幾天開始">
+          <input type="number" name="duration" placeholder="天數" value="7" title="持續幾天">
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center"><i data-lucide="plus"></i> 新增任務</button>
+      </form>
+    </div>
+
+    {# 文件範本 #}
+    <div class="card" style="overflow:hidden">
+      <div style="padding:12px 16px;border-bottom:1px solid #F3F4F6"><span style="font-size:13px;font-weight:600">文件清單範本</span></div>
+      {% if prog_docs %}
+      {% for d in prog_docs %}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #F9FAFB">
+        <div style="font-size:12.5px;color:#111827">{{ d.name }}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="badge" style="{{ badge_style(d.provider) }}">{{ d.provider }}</span>
+          <form method="POST" action="/programs/{{ program.id }}/tpl-doc/{{ d.id }}/delete">
+            <button type="submit" class="btn btn-ghost btn-xs" style="color:#9CA3AF" onclick="return confirm('刪除？')">✕</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="padding:16px;text-align:center;font-size:12px;color:#9CA3AF">尚無文件範本</div>
+      {% endif %}
+      <form method="POST" action="/programs/{{ program.id }}/tpl-doc/add" style="padding:12px 16px;background:#FCFCFD;border-top:1px solid #F3F4F6">
+        <input type="text" name="name" placeholder="文件名稱（如 近2年財報）" required style="margin-bottom:8px">
+        <div style="display:flex;gap:6px">
+          <select name="provider" style="flex:1"><option>客戶</option><option>我方</option></select>
+          <button type="submit" class="btn btn-secondary btn-sm" style="justify-content:center"><i data-lucide="plus"></i></button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endif %}
+{% endblock %}

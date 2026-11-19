@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}商機管理{% endblock %}
+{% block page_title %}商機管理{% endblock %}
+{% block page_subtitle %}{{ total_active }} 個商機 · 預估 {{ fmt_money(total_value) }}{% endblock %}
+{% block header_actions %}
+<form method="GET" style="display:flex;align-items:center;gap:6px">
+  <div style="position:relative">
+    <i data-lucide="search" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9CA3AF;pointer-events:none"></i>
+    <input type="text" name="q" value="{{ q }}" placeholder="搜尋商機…" style="width:180px;padding-left:30px;font-size:13px">
+  </div>
+  {% if q %}<a href="/opportunities" class="btn btn-ghost btn-sm">清除</a>{% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+
+{# ── 快速新增商機（客戶優先：先選客戶）── #}
+<div class="card" style="padding:14px 18px;margin-bottom:16px;background:#FbFcFe">
+  <div style="font-size:12px;font-weight:600;color:#2E4C6B;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+    <i data-lucide="zap" style="width:13px;height:13px"></i> 快速新增商機（先選一個已建檔的客戶）
+  </div>
+  {% if clients %}
+  <form method="POST" action="/opportunities/add" style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
+    <div><label class="field-label">客戶 *</label>
+      <select name="client_id" required>
+        <option value="">— 選擇客戶 —</option>
+        {% for c in clients %}<option value="{{ c.id }}">{{ c.company_name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><label class="field-label">想申請</label>
+      <select name="subsidy_type"><option value="">—</option>{% for s in subsidy_types %}<option>{{ s }}</option>{% endfor %}</select>
+    </div>
+    <div><label class="field-label">預估金額</label><input type="number" name="est_amount" min="0" step="10000" placeholder="0"></div>
+    <div><label class="field-label">來源</label>
+      <select name="source"><option value="">—</option>{% for s in sources %}<option>{{ s }}</option>{% endfor %}</select>
+    </div>
+    <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> 新增</button>
+  </form>
+  {% else %}
+  <div style="font-size:12px;color:#6B675E">
+    還沒有任何客戶。商機一定要掛在客戶底下，請先到
+    <a href="/clients/add" style="color:#2E4C6B;font-weight:600;text-decoration:none">客戶管理建立客戶 →</a>
+  </div>
+  {% endif %}
+</div>
+
+{# ── 看板 ── #}
+<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;align-items:flex-start">
+{% for stage in stage_order %}
+{% set items = grouped.get(stage, []) %}
+{% set m = meta.get(stage, {}) %}
+<div data-column data-stage-name="{{ stage }}" style="flex-shrink:0;width:270px;display:flex;flex-direction:column;max-height:calc(100vh - 230px)">
+  <div style="background:white;border:1px solid #E5E7EB;border-bottom:none;border-radius:9px 9px 0 0;padding:0">
+    <div style="height:3px;background:{{ m.color }};border-radius:9px 9px 0 0"></div>
+    <div style="padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:7px">
+        <span style="width:8px;height:8px;border-radius:50%;background:{{ m.color }}"></span>
+        <span style="font-size:12px;font-weight:700;color:#374151">{{ stage }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        {% if m.total > 0 %}<span style="font-size:10px;color:#9CA3AF">{{ fmt_money(m.total) }}</span>{% endif %}
+        <span style="background:#F3F4F6;color:#6B7280;font-size:10px;font-weight:700;padding:1px 7px;border-radius:100px"><span data-count>{{ m.count }}</span></span>
+      </div>
+    </div>
+  </div>
+  <div data-cards data-stage="{{ stage }}" style="flex:1;overflow-y:auto;padding:8px;background:#F3F4F6;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 9px 9px;min-height:70px">
+    {% if not items %}<div style="text-align:center;padding:16px 8px;color:#C4CAD4;font-size:11px">—</div>{% endif %}
+    {% for o in items %}
+    <div data-oid="{{ o.id }}" data-value="{{ o.est_amount or 0 }}"
+         style="background:white;border:1px solid #E5E7EB;border-radius:8px;padding:11px 13px;margin-bottom:7px;cursor:grab;box-shadow:0 1px 1px rgba(0,0,0,.04);position:relative"
+         onmouseenter="this.style.boxShadow='0 4px 12px rgba(0,0,0,.1)'" onmouseleave="this.style.boxShadow='0 1px 1px rgba(0,0,0,.04)'">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:2px;padding-right:18px">{{ o.company_name }}</div>
+      {% if o.contact_name %}<div style="font-size:11px;color:#9CA3AF">{{ o.contact_name }}{% if o.contact_phone %} · {{ o.contact_phone }}{% endif %}</div>{% endif %}
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+        {% if o.subsidy_type %}<span class="badge" style="{{ badge_style(o.subsidy_type) }};font-size:10px;padding:1px 6px">{{ o.subsidy_type }}</span>{% endif %}
+        {% if o.est_amount and o.est_amount > 0 %}<span style="font-size:10.5px;font-weight:600;color:#3F6B52">{{ fmt_money(o.est_amount) }}</span>{% endif %}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #F3F4F6;margin-top:8px;padding-top:7px">
+        <span style="font-size:10px;color:#9CA3AF">{{ o.source or '' }}</span>
+        <div style="display:flex;gap:6px">
+          {% if stage == '已簽約' %}
+          <form method="POST" action="/opportunities/{{ o.id }}/convert" onsubmit="return confirm('將「{{ o.company_name }}」轉為正式案件？\n會建立客戶（若無）與案件。')">
+            <button type="submit" style="font-size:10px;padding:2px 8px;border-radius:5px;border:none;background:#2E4C6B;color:white;cursor:pointer;font-weight:600">轉為案件 →</button>
+          </form>
+          {% endif %}
+          <a href="/opportunities/{{ o.id }}/edit" style="font-size:10px;color:#9A948A;text-decoration:none" onmouseenter="this.style.color='#2E4C6B'" onmouseleave="this.style.color='#9A948A'" onclick="event.stopPropagation()">編輯</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{# ── 未成交 ── #}
+{% if lost %}
+<details style="margin-top:16px">
+  <summary style="font-size:12px;font-weight:600;color:#9CA3AF;cursor:pointer;padding:8px 0">未成交 / 流案（{{ lost|length }}）</summary>
+  <div class="card" style="overflow:hidden;margin-top:6px">
+    {% for o in lost %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #F9FAFB">
+      <div><span style="font-size:13px;color:#6B7280">{{ o.company_name }}</span>{% if o.subsidy_type %}<span style="font-size:11px;color:#C4CAD4;margin-left:8px">{{ o.subsidy_type }}</span>{% endif %}</div>
+      <a href="/opportunities/{{ o.id }}/edit" class="btn btn-ghost btn-xs" style="color:#9CA3AF">編輯</a>
+    </div>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<style>.drag-ghost{opacity:.35;background:#ECF1F6!important}</style>
+<script>
+(function(){
+  function recount(){
+    document.querySelectorAll('[data-column]').forEach(function(col){
+      var n = col.querySelectorAll('[data-cards] [data-oid]').length;
+      col.querySelector('[data-count]').textContent = n;
+    });
+  }
+  document.querySelectorAll('[data-cards]').forEach(function(col){
+    Sortable.create(col, {
+      group:'opps', animation:150, ghostClass:'drag-ghost', forceFallback:true,
+      onEnd: function(evt){
+        var oid = evt.item.dataset.oid;
+        var to = evt.to.dataset.stage, from = evt.from.dataset.stage;
+        if(to===from){ recount(); return; }
+        var fd = new FormData(); fd.append('status', to);
+        fetch('/opportunities/'+oid+'/move', {method:'POST', body:fd})
+          .then(function(r){ if(!r.ok) throw 0; recount(); location.reload(); })
+          .catch(function(){ location.reload(); });
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

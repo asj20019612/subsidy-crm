@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}財務戰情室{% endblock %}
+{% block page_title %}財務戰情室{% endblock %}
+{% block page_subtitle %}應收 · 已收 · 待收總覽{% endblock %}
+
+{% block content %}
+
+{# ── Metric grid 2×3 ── #}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+  {% set metrics = [
+    ('計畫書費 應收', total_wfee,      '#6B7280', false),
+    ('計畫書費 已收', total_wfee_paid, '#047857', false),
+    ('計畫書費 待收', total_wfee_pend, '#B45309', true),
+    ('成功酬金 應收', total_sf_total,  '#6B7280', false),
+    ('成功酬金 已收', total_sf_coll,   '#047857', false),
+    ('成功酬金 待收', total_sf_pend,   '#B45309', true),
+  ] %}
+  {% for label, val, color, is_pending in metrics %}
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:16px 18px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <span style="width:6px;height:6px;border-radius:50%;background:{{ color }}"></span>
+      <span style="font-size:11px;font-weight:600;color:#6B7280;letter-spacing:.02em">{{ label }}</span>
+    </div>
+    <div style="font-size:24px;font-weight:700;color:{{ '#B45309' if is_pending and val > 0 else '#111827' }};letter-spacing:-0.02em">
+      {{ fmt_money(val) }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Grand total alert ── #}
+<div style="background:{{ '#FFFBEB' if grand_pending > 0 else '#ECFDF5' }};
+            border:1px solid {{ '#FDE68A' if grand_pending > 0 else '#A7F3D0' }};
+            border-radius:10px;padding:14px 20px;margin-bottom:24px;
+            display:flex;align-items:center;justify-content:space-between">
+  <div style="display:flex;align-items:center;gap:10px">
+    <i data-lucide="{{ 'alert-circle' if grand_pending > 0 else 'check-circle-2' }}"
+       style="width:18px;height:18px;color:{{ '#B45309' if grand_pending > 0 else '#047857' }}"></i>
+    <span style="font-size:13px;font-weight:600;color:{{ '#92400E' if grand_pending > 0 else '#065F46' }}">
+      合計待收款
+    </span>
+  </div>
+  <span style="font-size:24px;font-weight:700;color:{{ '#B45309' if grand_pending > 0 else '#047857' }}">
+    {{ fmt_money(grand_pending) }}
+  </span>
+</div>
+
+{# ── Monthly income ── #}
+<div class="card" style="margin-bottom:20px;overflow:hidden">
+  <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-weight:600;color:#111827">月份收入趨勢</span>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="text-align:right">
+        <span style="font-size:10px;color:#9CA3AF;text-transform:uppercase">{{ year }} 年度</span>
+        <span style="font-size:15px;font-weight:700;color:#111827;margin-left:6px">{{ fmt_money(ytd) }}</span>
+      </div>
+      <form method="GET">
+        <select name="year" onchange="this.form.submit()" style="width:90px;font-size:12px">
+          {% for y in [cur_year, cur_year-1, cur_year-2] %}<option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }} 年</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+  <div style="padding:20px">
+    {% set max_val = monthly_rows|map(attribute='total')|max %}
+    {% if max_val > 0 %}
+    <div style="display:flex;align-items:flex-end;gap:8px;height:160px">
+      {% for row in monthly_rows %}
+      {% set wf_h = (row.wf / max_val * 140)|int %}
+      {% set sf_h = (row.sf / max_val * 140)|int %}
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
+        <div style="width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px;height:140px">
+          <div style="flex:1;background:#6366F1;border-radius:3px 3px 0 0;height:{{ wf_h }}px;min-height:{{ '2' if row.wf > 0 else '0' }}px" title="計畫書費 {{ fmt_money(row.wf) }}"></div>
+          <div style="flex:1;background:#10B981;border-radius:3px 3px 0 0;height:{{ sf_h }}px;min-height:{{ '2' if row.sf > 0 else '0' }}px" title="成功酬金 {{ fmt_money(row.sf) }}"></div>
+        </div>
+        <span style="font-size:10px;color:#9CA3AF">{{ row.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:16px;margin-top:14px">
+      <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#6366F1"></span><span style="font-size:12px;color:#6B7280">計畫書費</span></div>
+      <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#10B981"></span><span style="font-size:12px;color:#6B7280">成功酬金</span></div>
+    </div>
+    {% else %}
+    <div style="padding:30px;text-align:center;border:1px dashed #E5E7EB;border-radius:8px">
+      <div style="font-size:13px;color:#9CA3AF">{{ year }} 年尚無收款記錄</div>
+      <div style="font-size:11px;color:#9CA3AF;margin-top:4px">在下方記錄收款後即可顯示趨勢</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Payment log ── #}
+<div style="display:flex;gap:20px;margin-bottom:20px;align-items:flex-start">
+  <div style="width:300px;flex-shrink:0">
+    <div class="card" style="overflow:hidden">
+      <div style="padding:11px 16px;border-bottom:1px solid #F3F4F6;background:#FAFAFA">
+        <span style="font-size:12px;font-weight:700;color:#374151">新增收款</span>
+      </div>
+      <div style="padding:16px">
+        <form method="POST" action="/finance/payment/add">
+          <div class="field-group">
+            <label class="field-label">關聯案件</label>
+            <select name="project_id">
+              <option value="">— 未指定 —</option>
+              {% for p in projects_all %}<option value="{{ p.id }}">{{ p.client_name }} — {{ p.project_name[:16] }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">收款類型</label>
+            <select name="payment_type">{% for t in payment_types %}<option>{{ t }}</option>{% endfor %}</select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">金額 *</label>
+            <input type="number" name="amount" min="0" step="1000" required placeholder="0">
+          </div>
+          <div class="field-group">
+            <label class="field-label">收款日期 *</label>
+            <input type="date" name="payment_date" required>
+          </div>
+          <div class="field-group">
+            <label class="field-label">備註</label>
+            <input type="text" name="notes">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center"><i data-lucide="plus"></i> 記錄收款</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-width:0">
+    <div class="card" style="overflow:hidden">
+      <div style="padding:11px 18px;border-bottom:1px solid #F3F4F6;background:#FAFAFA">
+        <span style="font-size:12px;font-weight:700;color:#374151">最近收款紀錄</span>
+      </div>
+      {% if not recent_logs %}
+      <div style="padding:30px;text-align:center;font-size:13px;color:#9CA3AF">尚無收款記錄</div>
+      {% else %}
+      {% for lg in recent_logs %}
+      {% set is_wf = lg.payment_type == '計畫書費' %}
+      <div class="trow" style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #F9FAFB;border-left:3px solid {{ '#6366F1' if is_wf else '#10B981' }}">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0">
+          <span style="font-size:15px;font-weight:700;color:#111827">${{ "{:,.0f}".format(lg.amount) }}</span>
+          <div style="min-width:0">
+            <span class="badge" style="{{ badge_style(lg.payment_type) }}">{{ lg.payment_type }}</span>
+            {% if lg.project %}<span style="font-size:11px;color:#9CA3AF;margin-left:4px">{{ lg.project.client_name }}</span>{% endif %}
+            {% if lg.notes %}<span style="font-size:11px;color:#9CA3AF"> · {{ lg.notes }}</span>{% endif %}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <span style="font-size:11px;color:#9CA3AF">{{ lg.payment_date }}</span>
+          <form method="POST" action="/finance/payment/{{ lg.id }}/delete" onsubmit="return confirm('刪除此收款記錄？')">
+            <button type="submit" style="background:none;border:none;cursor:pointer;color:#D1D5DB;padding:3px;border-radius:5px;transition:color .1s" onmouseenter="this.style.color='#EF4444'" onmouseleave="this.style.color='#D1D5DB'">
+              <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Success fee detail ── #}
+<div class="card" style="overflow:hidden">
+  <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6">
+    <span style="font-size:13px;font-weight:600;color:#111827">成功酬金明細</span>
+  </div>
+  {% set has_sf = rows|selectattr('sf_total')|list %}
+  {% if not has_sf %}
+  <div style="padding:30px;text-align:center;font-size:13px;color:#9CA3AF">尚無已核定補助款的案件</div>
+  {% else %}
+  {% for r in rows %}{% if r.sf_total > 0 %}{% set p = r.project %}
+  <details style="border-bottom:1px solid #F3F4F6">
+    <summary style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s" onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background='transparent'">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0">
+        <span style="font-size:13px;font-weight:600;color:#111827">{{ p.client_name }}</span>
+        <span style="font-size:12px;color:#9CA3AF">{{ p.project_name }}</span>
+        <span class="badge" style="{{ badge_style(p.deal_status) }}">{{ p.deal_status }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:20px;flex-shrink:0">
+        <div style="text-align:right"><div style="font-size:10px;color:#9CA3AF;text-transform:uppercase">應收</div><div style="font-size:13px;font-weight:600;color:#374151">{{ fmt_money(r.sf_total) }}</div></div>
+        <div style="text-align:right"><div style="font-size:10px;color:#047857;text-transform:uppercase">已收</div><div style="font-size:13px;font-weight:600;color:#047857">{{ fmt_money(r.sf_coll) }}</div></div>
+        <div style="text-align:right"><div style="font-size:10px;color:{{ '#B45309' if r.sf_pend > 0 else '#047857' }};text-transform:uppercase">待收</div><div style="font-size:13px;font-weight:600;color:{{ '#B45309' if r.sf_pend > 0 else '#047857' }}">{{ fmt_money(r.sf_pend) }}</div></div>
+      </div>
+    </summary>
+    <div style="padding:0 20px 18px;background:#FCFCFD">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding-top:14px;margin-bottom:14px">
+        {% for stage_n, exp, paid, rate in [('第1期', r.s1e, p.success_fee_s1_paid, p.success_fee_s1_rate),('第2期', r.s2e, p.success_fee_s2_paid, p.success_fee_s2_rate),('第3期', r.s3e, p.success_fee_s3_paid, p.success_fee_s3_rate)] %}
+        {% set done = paid >= exp * 0.99 and exp > 0 %}{% set partial = paid > 0 and not done %}
+        <div style="border-radius:8px;padding:12px 14px;{% if done %}background:#ECFDF5;border:1px solid #A7F3D0{% elif partial %}background:#FFFBEB;border:1px solid #FDE68A{% else %}background:white;border:1px solid #E5E7EB{% endif %}">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;color:{{ '#047857' if done else ('#B45309' if partial else '#9CA3AF') }}">{{ stage_n }} · {{ rate }}%</div>
+          <div style="font-size:15px;font-weight:700;color:{{ '#047857' if done else ('#B45309' if partial else '#6B7280') }}">
+            {% if done %}${{ "{:,.0f}".format(paid) }}{% elif partial %}${{ "{:,.0f}".format(paid) }}{% else %}${{ "{:,.0f}".format(exp) }}{% endif %}
+          </div>
+          {% if partial %}<div style="font-size:10px;color:#B45309;margin-top:2px">應收 ${{ "{:,.0f}".format(exp) }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <form method="POST" action="/finance/projects/{{ p.id }}/update-fees">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:end">
+          <div><label class="field-label">計畫書已收</label><input type="number" name="writing_fee_paid" value="{{ p.writing_fee_paid or 0 }}" min="0" step="1000" style="font-size:12px"></div>
+          <div><label class="field-label">第1期已收</label><input type="number" name="success_fee_s1_paid" value="{{ p.success_fee_s1_paid or 0 }}" min="0" step="1000" style="font-size:12px"></div>
+          <div><label class="field-label">第2期已收</label><input type="number" name="success_fee_s2_paid" value="{{ p.success_fee_s2_paid or 0 }}" min="0" step="1000" style="font-size:12px"></div>
+          <div><label class="field-label">第3期已收</label><input type="number" name="success_fee_s3_paid" value="{{ p.success_fee_s3_paid or 0 }}" min="0" step="1000" style="font-size:12px"></div>
+        </div>
+        <input type="hidden" name="success_fee_s1_rate" value="{{ p.success_fee_s1_rate or 6 }}">
+        <input type="hidden" name="success_fee_s2_rate" value="{{ p.success_fee_s2_rate or 6 }}">
+        <input type="hidden" name="success_fee_s3_rate" value="{{ p.success_fee_s3_rate or 3 }}">
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-top:12px"><i data-lucide="save"></i> 更新收款</button>
+      </form>
+    </div>
+  </details>
+  {% endif %}{% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}專案執行 · {{ project.project_name }}{% endblock %}
+{% block page_title %}專案執行{% endblock %}
+{% block page_subtitle %}{{ project.client_name }} — {{ project.project_name }}{% endblock %}
+{% block header_actions %}
+<a href="/projects/{{ project.id }}/gantt-share" target="_blank" class="btn btn-primary btn-sm"><i data-lucide="image"></i> 產出客戶圖片</a>
+<a href="/projects/{{ project.id }}/edit" class="btn btn-secondary btn-sm"><i data-lucide="pencil"></i> 編輯案件</a>
+<a href="/gantt" class="btn btn-ghost btn-sm"><i data-lucide="arrow-left"></i> 甘特圖總覽</a>
+{% endblock %}
+
+{% set DAY_W = 32 %}
+
+{% block content %}
+
+{# ── Top stats ── #}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:14px 18px">
+    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">任務平均進度</div>
+    <div style="font-size:24px;font-weight:700;color:#2E4C6B">{{ task_avg }}<span style="font-size:13px;color:#9CA3AF">%</span></div>
+  </div>
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:14px 18px">
+    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">文件繳交</div>
+    <div style="font-size:24px;font-weight:700;color:#3F6B52">{{ doc_done }}<span style="font-size:13px;color:#9CA3AF">/{{ doc_need }}</span></div>
+  </div>
+  <div style="background:white;border:1px solid #E5E7EB;border-radius:10px;padding:14px 18px">
+    <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">目前階段</div>
+    <div style="margin-top:4px"><span class="badge" style="{{ badge_style(project.current_stage) }}">{{ project.current_stage }}</span></div>
+  </div>
+</div>
+
+{# ── Apply template ── #}
+{% if has_template %}
+<div style="background:#ECF1F6;border:1px solid #CBD8E5;border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+  <div style="font-size:12.5px;color:#2E4C6B">
+    <b>{{ program_name }}</b> 有設定好的任務／文件範本，可一鍵帶入此案件。
+  </div>
+  <button type="button" class="btn btn-primary btn-sm" popovertarget="apply-tpl">套用範本</button>
+</div>
+<div id="apply-tpl" popover class="pop-card" style="width:340px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="font-size:13px;font-weight:600">套用「{{ program_name }}」範本</div>
+    <button type="button" class="pop-close" popovertarget="apply-tpl" popovertargetaction="hide">✕</button>
+  </div>
+  <form method="POST" action="/projects/{{ project.id }}/apply-template">
+    <div class="field-group">
+      <label class="field-label">專案起始日</label>
+      <input type="date" name="start_date" value="{{ today.isoformat() }}" required>
+      <div style="font-size:11px;color:#9CA3AF;margin-top:4px">各任務日期會依此日起算</div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">帶入任務與文件</button>
+  </form>
+</div>
+{% endif %}
+
+{# ══════════ Gantt ══════════ #}
+<div class="card" style="overflow:hidden;margin-bottom:20px">
+  <div style="padding:13px 18px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-weight:600;color:#111827">專案甘特圖</span>
+    <span style="font-size:11px;color:#9CA3AF">拖曳時間條可調整日期 · 拖右緣可改結束日 · 顏色＝工作階段</span>
+  </div>
+
+  {% if span_days == 0 %}
+  <div style="padding:40px;text-align:center;color:#9CA3AF;font-size:13px">
+    尚無含日期的任務。{% if has_template %}點上方「套用範本」或{% endif %}在下方新增任務並填上開始/結束日，甘特圖就會出現。
+  </div>
+  {% else %}
+  <div style="display:flex">
+    {# left labels #}
+    <div style="width:170px;flex-shrink:0;border-right:1px solid #F3F4F6">
+      <div style="height:44px;border-bottom:1px solid #F3F4F6;background:#FAFAFA"></div>
+      {% for t in tasks %}
+      <div style="height:38px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid #F9FAFB;font-size:12px;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{{ t.name }}">{{ t.name }}</div>
+      {% endfor %}
+    </div>
+    {# scrollable timeline #}
+    <div style="overflow-x:auto;flex:1">
+      <div id="gantt" data-pid="{{ project.id }}" data-min="{{ gantt_min.isoformat() }}" data-dayw="{{ DAY_W }}"
+           style="position:relative;width:{{ span_days * DAY_W }}px">
+        {# header days #}
+        <div style="height:44px;border-bottom:1px solid #F3F4F6;background:#FAFAFA;position:relative">
+          {% for i in range(span_days) %}
+          {% set d = gantt_min + timedelta(days=i) %}
+          {% set is_today = d == today %}
+          {% set is_month_start = d.day == 1 %}
+          <div style="position:absolute;left:{{ i * DAY_W }}px;top:0;width:{{ DAY_W }}px;height:44px;
+                      border-left:1px solid {{ '#E5E7EB' if is_month_start else '#F3F4F6' }};
+                      {% if d.weekday() >= 5 %}background:#FAFBFC{% endif %}
+                      text-align:center">
+            {% if is_month_start or i == 0 %}<div style="font-size:9.5px;color:#6B7280;font-weight:700;padding-top:4px">{{ d.month }}月</div>{% endif %}
+            <div style="font-size:10px;color:{{ '#9E4A40' if is_today else '#9CA3AF' }};font-weight:{{ '700' if is_today else '400' }};padding-top:{{ '2px' if (is_month_start or i==0) else '14px' }}">{{ d.day }}</div>
+          </div>
+          {% endfor %}
+          {# today line #}
+          {% set tdelta = (today - gantt_min).days %}
+          {% if 0 <= tdelta < span_days %}
+          <div style="position:absolute;left:{{ tdelta * DAY_W + DAY_W//2 }}px;top:0;width:2px;height:44px;background:#9E4A40;opacity:.5"></div>
+          {% endif %}
+        </div>
+
+        {# task rows #}
+        {% for t in tasks %}
+        {% set s = parse_date(t.start_date) %}
+        {% set e = parse_date(t.due_date) %}
+        <div style="height:38px;position:relative;border-bottom:1px solid #F9FAFB">
+          {# today line within row #}
+          {% set tdelta = (today - gantt_min).days %}
+          {% if 0 <= tdelta < span_days %}
+          <div style="position:absolute;left:{{ tdelta * DAY_W + DAY_W//2 }}px;top:0;width:2px;height:38px;background:#9E4A40;opacity:.18"></div>
+          {% endif %}
+          {% if s and e %}
+          {% set off = (s - gantt_min).days %}
+          {% set dur = (e - s).days + 1 %}
+          {% set fg, bgc, bdc = phase_color(t.phase, phases) %}
+          <div class="gbar" data-tid="{{ t.id }}" data-off="{{ off }}" data-dur="{{ dur }}"
+               style="position:absolute;left:{{ off * DAY_W }}px;top:7px;width:{{ dur * DAY_W }}px;height:24px;
+                      background:{{ bgc }};border:1px solid {{ bdc }};
+                      border-radius:6px;cursor:grab;overflow:hidden;display:flex;align-items:center"
+               title="{{ t.phase or '未分階段' }} · {{ t.name }}">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:{{ t.progress }}%;background:{{ bdc }};opacity:.75"></div>
+            <span style="position:relative;font-size:10.5px;color:{{ fg }};font-weight:600;padding:0 8px;white-space:nowrap;z-index:1">{{ t.progress }}%</span>
+            <div class="gresize" style="position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:2"></div>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{# ══════════ Task list ══════════ #}
+<div class="card" style="overflow:hidden;margin-bottom:20px">
+  <div style="padding:13px 18px;border-bottom:1px solid #F3F4F6"><span style="font-size:13px;font-weight:600;color:#111827">工作任務</span></div>
+
+  {# add task #}
+  <form method="POST" action="/projects/{{ project.id }}/tasks/add"
+        style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;padding:12px 18px;border-bottom:1px solid #F3F4F6;background:#FCFCFD;align-items:end">
+    <div><label class="field-label">任務名稱</label><input type="text" name="name" required placeholder="如 完成計畫書初稿"></div>
+    <div><label class="field-label">工作階段</label>
+      <select name="phase"><option value="">—</option>{% for ph in phases %}<option>{{ ph }}</option>{% endfor %}</select>
+    </div>
+    <div><label class="field-label">開始日</label><input type="date" name="start_date"></div>
+    <div><label class="field-label">結束日</label><input type="date" name="due_date"></div>
+    <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> 新增</button>
+  </form>
+
+  {% if tasks %}
+  {% for t in tasks %}
+  <div style="display:grid;grid-template-columns:2fr 1fr 1.4fr 90px auto;gap:10px;padding:11px 18px;border-bottom:1px solid #F9FAFB;align-items:center">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#111827">{{ t.name }}</div>
+      {% if t.owner %}<div style="font-size:11px;color:#9CA3AF">負責：{{ t.owner }}</div>{% endif %}
+    </div>
+    <div>{% if t.phase %}{% set fg, bgc, bdc = phase_color(t.phase, phases) %}<span class="badge" style="color:{{ fg }};background:{{ bgc }};border:1px solid {{ bdc }}">{{ t.phase }}</span>{% endif %}</div>
+    <div style="font-size:12px;color:#6B7280">{{ t.start_date or '—' }} → {{ t.due_date or '—' }}</div>
+    <div>
+      <div style="background:#F3F4F6;border-radius:5px;height:6px;overflow:hidden">
+        <div style="height:100%;background:{{ '#3F6B52' if t.progress >= 100 else '#2E4C6B' }};width:{{ t.progress }}%"></div>
+      </div>
+      <div style="font-size:10.5px;color:#9CA3AF;margin-top:2px">{{ t.progress }}%</div>
+    </div>
+    <div style="display:flex;gap:5px;justify-content:flex-end">
+      <button type="button" class="btn btn-secondary btn-xs" popovertarget="task-{{ t.id }}">編輯</button>
+    </div>
+  </div>
+
+  <div id="task-{{ t.id }}" popover class="pop-card" style="width:360px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600">編輯任務</div>
+      <button type="button" class="pop-close" popovertarget="task-{{ t.id }}" popovertargetaction="hide">✕</button>
+    </div>
+    <form method="POST" action="/projects/{{ project.id }}/tasks/{{ t.id }}/edit">
+      <div class="field-group"><label class="field-label">任務名稱</label><input type="text" name="name" value="{{ t.name }}" required></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="field-label">開始日</label><input type="date" name="start_date" value="{{ t.start_date }}"></div>
+        <div><label class="field-label">結束日</label><input type="date" name="due_date" value="{{ t.due_date }}"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div><label class="field-label">工作階段</label>
+          <select name="phase">
+            <option value="">—</option>
+            {% for ph in phases %}<option {% if t.phase==ph %}selected{% endif %}>{{ ph }}</option>{% endfor %}
+            {% if t.phase and t.phase not in phases %}<option selected>{{ t.phase }}</option>{% endif %}
+          </select>
+        </div>
+        <div><label class="field-label">負責人</label><input type="text" name="owner" value="{{ t.owner }}"></div>
+      </div>
+      <div class="field-group" style="margin-top:10px">
+        <label class="field-label">進度 <span id="pv-{{ t.id }}">{{ t.progress }}</span>%</label>
+        <input type="range" name="progress" min="0" max="100" step="5" value="{{ t.progress }}"
+               oninput="document.getElementById('pv-{{ t.id }}').textContent=this.value" style="width:100%">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center">儲存</button>
+      </div>
+    </form>
+    <form method="POST" action="/projects/{{ project.id }}/tasks/{{ t.id }}/delete" style="margin-top:8px"
+          onsubmit="return confirm('刪除此任務？')">
+      <button type="submit" class="btn btn-danger btn-sm" style="width:100%;justify-content:center">刪除任務</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="padding:24px;text-align:center;font-size:12px;color:#9CA3AF">尚無任務，於上方新增</div>
+  {% endif %}
+</div>
+
+{# ══════════ Document checklist ══════════ #}
+<div class="card" style="overflow:hidden">
+  <div style="padding:13px 18px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-weight:600;color:#111827">文件清單</span>
+    <span style="font-size:11px;color:#9CA3AF">已繳 {{ doc_done }} / 需要 {{ doc_need }}</span>
+  </div>
+
+  <form method="POST" action="/projects/{{ project.id }}/docs/add"
+        style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;padding:12px 18px;border-bottom:1px solid #F3F4F6;background:#FCFCFD;align-items:end">
+    <div><label class="field-label">文件名稱</label><input type="text" name="name" required placeholder="如 近2年財報、公司登記證"></div>
+    <div><label class="field-label">提供方</label><select name="provider">{% for pv in providers %}<option>{{ pv }}</option>{% endfor %}</select></div>
+    <div><label class="field-label">期限</label><input type="date" name="due_date"></div>
+    <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="plus"></i> 新增</button>
+  </form>
+
+  {% if docs %}
+  {% for d in docs %}
+  {% set st_color = {'未繳':('#8A6A2F','#F6F0E1'),'已繳':('#3F6B52','#EAF1EC'),'不需要':('#6B675E','#EFEDE7')} %}
+  <div style="display:grid;grid-template-columns:auto 2fr 1fr 1fr auto;gap:12px;padding:11px 18px;border-bottom:1px solid #F9FAFB;align-items:center">
+    {# quick toggle 已繳 #}
+    <form method="POST" action="/projects/{{ project.id }}/docs/{{ d.id }}/status" style="display:flex">
+      <input type="hidden" name="status" value="{{ '未繳' if d.status=='已繳' else '已繳' }}">
+      <button type="submit" title="點一下切換已繳/未繳"
+              style="width:20px;height:20px;border-radius:5px;cursor:pointer;
+                     border:1.5px solid {{ '#3F6B52' if d.status=='已繳' else '#D1D5DB' }};
+                     background:{{ '#3F6B52' if d.status=='已繳' else 'white' }};
+                     color:white;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center">
+        {{ '✓' if d.status=='已繳' else '' }}
+      </button>
+    </form>
+    <div style="font-size:13px;color:#111827;{% if d.status=='已繳' %}text-decoration:line-through;color:#9CA3AF{% endif %}">{{ d.name }}</div>
+    <div><span class="badge" style="{{ badge_style(d.provider) }}">{{ d.provider }}</span></div>
+    <div style="font-size:12px;color:#9CA3AF">{{ d.due_date or '—' }}</div>
+    <div style="display:flex;gap:5px;align-items:center;justify-content:flex-end">
+      {% set tc, bg = st_color[d.status] %}
+      <span class="badge" style="color:{{ tc }};background:{{ bg }}">{{ d.status }}</span>
+      <button type="button" class="btn btn-ghost btn-xs" popovertarget="doc-{{ d.id }}">⋯</button>
+    </div>
+  </div>
+  <div id="doc-{{ d.id }}" popover class="pop-card" style="width:260px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">{{ d.name }}</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      {% for s in doc_status %}
+      <form method="POST" action="/projects/{{ project.id }}/docs/{{ d.id }}/status">
+        <input type="hidden" name="status" value="{{ s }}">
+        <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;justify-content:flex-start">
+          {{ '● ' if d.status==s else '○ ' }}{{ s }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+    <form method="POST" action="/projects/{{ project.id }}/docs/{{ d.id }}/delete" style="margin-top:10px"
+          onsubmit="return confirm('刪除此文件項目？')">
+      <button type="submit" class="btn btn-danger btn-sm" style="width:100%;justify-content:center">刪除</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="padding:24px;text-align:center;font-size:12px;color:#9CA3AF">尚無文件項目，於上方新增</div>
+  {% endif %}
+</div>
+
+{# ── Gantt drag JS ── #}
+<script>
+(function(){
+  var g = document.getElementById('gantt');
+  if(!g) return;
+  var pid = g.dataset.pid;
+  var dayW = parseInt(g.dataset.dayw, 10);
+  var minISO = g.dataset.min;
+
+  function addDays(iso, n){
+    var d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0,10);
+  }
+  function save(tid, start, due){
+    var fd = new FormData();
+    fd.append('start_date', start); fd.append('due_date', due);
+    fetch('/projects/'+pid+'/tasks/'+tid+'/move', {method:'POST', body:fd});
+  }
+
+  g.querySelectorAll('.gbar').forEach(function(bar){
+    var resizing=false, moving=false, startX=0, origLeft=0, origW=0;
+    var tid = bar.dataset.tid;
+
+    var handle = bar.querySelector('.gresize');
+    handle.addEventListener('mousedown', function(e){
+      e.stopPropagation(); e.preventDefault();
+      resizing=true; startX=e.clientX; origW=bar.offsetWidth;
+      document.body.style.userSelect='none';
+    });
+    bar.addEventListener('mousedown', function(e){
+      if(resizing) return;
+      e.preventDefault();
+      moving=true; startX=e.clientX; origLeft=bar.offsetLeft;
+      bar.style.cursor='grabbing'; document.body.style.userSelect='none';
+    });
+
+    document.addEventListener('mousemove', function(e){
+      if(moving){
+        var nl = origLeft + (e.clientX - startX);
+        nl = Math.max(0, Math.round(nl/dayW)*dayW);
+        bar.style.left = nl + 'px';
+      } else if(resizing){
+        var nw = origW + (e.clientX - startX);
+        nw = Math.max(dayW, Math.round(nw/dayW)*dayW);
+        bar.style.width = nw + 'px';
+      }
+    });
+
+    document.addEventListener('mouseup', function(){
+      if(!moving && !resizing) return;
+      var off = Math.round(bar.offsetLeft/dayW);
+      var dur = Math.round(bar.offsetWidth/dayW);
+      var start = addDays(minISO, off);
+      var due   = addDays(minISO, off + dur - 1);
+      save(tid, start, due);
+      bar.dataset.off = off; bar.dataset.dur = dur;
+      moving=false; resizing=false;
+      bar.style.cursor='grab'; document.body.style.userSelect='';
+    });
+  });
+})();
+</script>
+{% endblock %}

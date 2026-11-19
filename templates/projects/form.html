@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}{{ '編輯案件' if project else '新增案件' }}{% endblock %}
+{% block page_title %}{{ '編輯案件' if project else '新增案件' }}{% endblock %}
+{% block page_subtitle %}{{ project.project_name if project else '建立新的補助案件' }}{% endblock %}
+{% block header_actions %}
+{% if project %}<a href="/projects/{{ project.id }}/execution" class="btn btn-primary btn-sm"><i data-lucide="gantt-chart"></i> 甘特圖 / 任務</a>{% endif %}
+<a href="/projects" class="btn btn-secondary btn-sm"><i data-lucide="arrow-left"></i> 返回</a>
+{% endblock %}
+
+{% block content %}
+{% set action = '/projects/' ~ project.id ~ '/edit' if project else '/projects/add' %}
+
+<form method="POST" action="{{ action }}" style="max-width:880px;margin:0 auto">
+<div class="card" style="overflow:hidden">
+
+  {# ── 基本資料 ── #}
+  <div class="form-section">
+    <div class="form-section-title">案件基本資料</div>
+    <div class="form-section-desc">案件名稱、補助類型與目前階段</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field-group" style="margin:0">
+        <label class="field-label">關聯客戶</label>
+        <select name="client_id">
+          <option value="">— 手動輸入 —</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}" {% if project and project.client_id==c.id %}selected{% endif %}>{{ c.company_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field-group" style="margin:0">
+        <label class="field-label">客戶名稱</label>
+        <input type="text" name="client_name" value="{{ project.client_name if project else '' }}" placeholder="或從左側選擇客戶">
+      </div>
+      <div class="field-group" style="margin:0">
+        <label class="field-label">專案名稱 *</label>
+        <input type="text" name="project_name" required value="{{ project.project_name if project else '' }}">
+      </div>
+      <div class="field-group" style="margin:0">
+        <label class="field-label">補助類型 *</label>
+        <select name="subsidy_type">
+          {% for t in subsidy_types %}<option value="{{ t }}" {% if project and project.subsidy_type==t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field-group" style="margin:0">
+        <label class="field-label">目前階段</label>
+        <select name="current_stage">
+          {% for s in stages %}<option value="{{ s }}" {% if project and project.current_stage==s %}selected{% elif not project and s=='新名單' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field-group" style="margin:0">
+        <label class="field-label">工作類型</label>
+        <select name="work_type">
+          {% for t in work_types %}<option value="{{ t }}" {% if project and project.work_type==t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  {# ── 進度與追蹤 ── #}
+  <div class="form-section">
+    <div class="form-section-title">進度與追蹤</div>
+    <div class="form-section-desc">目前狀態、下一步行動與重要日期</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+      <div>
+        <label class="field-label">狀態</label>
+        <select name="status">
+          {% for s in statuses %}<option value="{{ s }}" {% if project and project.status==s %}selected{% elif not project and s=='未開始' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="field-label">下一步到期日</label>
+        <input type="date" name="next_deadline" value="{{ project.next_deadline if project else '' }}">
+      </div>
+      <div>
+        <label class="field-label">送件 / 截稿日</label>
+        <input type="date" name="submission_deadline" value="{{ project.submission_deadline if project else '' }}">
+      </div>
+    </div>
+    <div class="field-group" style="margin-bottom:14px">
+      <label class="field-label">下一步行動</label>
+      <textarea name="next_action" rows="2">{{ project.next_action if project else '' }}</textarea>
+    </div>
+    <div style="max-width:240px">
+      <label class="field-label">最近聯繫日</label>
+      <input type="date" name="last_contact_date" value="{{ project.last_contact_date if project else '' }}">
+    </div>
+  </div>
+
+  {# ── 成交與負責人 ── #}
+  <div class="form-section">
+    <div class="form-section-title">成交與負責人</div>
+    <div class="form-section-desc">成交狀態、優先級與負責窗口</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+      <div>
+        <label class="field-label">成交狀態</label>
+        <select name="deal_status">
+          {% for s in deal_statuses %}<option value="{{ s }}" {% if project and project.deal_status==s %}selected{% elif not project and s=='未成交' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="field-label">優先級</label>
+        <select name="priority">
+          {% for s in priorities %}<option value="{{ s }}" {% if project and project.priority==s %}selected{% elif not project and s=='中' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="field-label">負責人</label>
+        <input type="text" name="owner" value="{{ project.owner if project else '' }}">
+      </div>
+      <div>
+        <label class="field-label">客戶窗口</label>
+        <input type="text" name="client_contact" value="{{ project.client_contact if project else '' }}">
+      </div>
+    </div>
+  </div>
+
+  {# ── 財務 ── #}
+  <div class="form-section">
+    <div class="form-section-title">財務</div>
+    <div class="form-section-desc">計畫書費用、核定補助款與成功酬金</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+      <div>
+        <label class="field-label">計畫書費用</label>
+        <input type="number" name="writing_fee" value="{{ project.writing_fee if project else 0 }}" min="0" step="1000">
+      </div>
+      {% if project %}
+      <div>
+        <label class="field-label">計畫書已收</label>
+        <input type="number" name="writing_fee_paid" value="{{ project.writing_fee_paid or 0 }}" min="0" step="1000">
+      </div>
+      {% endif %}
+      <div>
+        <label class="field-label">核定補助款</label>
+        <input type="number" name="approved_subsidy" value="{{ project.approved_subsidy if project else 0 }}" min="0" step="10000">
+      </div>
+    </div>
+    {% if project %}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+      <div>
+        <label class="field-label">第1期 %</label>
+        <input type="number" name="success_fee_s1_rate" value="{{ project.success_fee_s1_rate or 6 }}" min="0" max="100" step="0.5">
+        <label class="field-label" style="margin-top:8px">第1期已收</label>
+        <input type="number" name="success_fee_s1_paid" value="{{ project.success_fee_s1_paid or 0 }}" min="0" step="1000">
+      </div>
+      <div>
+        <label class="field-label">第2期 %</label>
+        <input type="number" name="success_fee_s2_rate" value="{{ project.success_fee_s2_rate or 6 }}" min="0" max="100" step="0.5">
+        <label class="field-label" style="margin-top:8px">第2期已收</label>
+        <input type="number" name="success_fee_s2_paid" value="{{ project.success_fee_s2_paid or 0 }}" min="0" step="1000">
+      </div>
+      <div>
+        <label class="field-label">第3期 %</label>
+        <input type="number" name="success_fee_s3_rate" value="{{ project.success_fee_s3_rate or 3 }}" min="0" max="100" step="0.5">
+        <label class="field-label" style="margin-top:8px">第3期已收</label>
+        <input type="number" name="success_fee_s3_paid" value="{{ project.success_fee_s3_paid or 0 }}" min="0" step="1000">
+      </div>
+    </div>
+    {% else %}
+    <div style="max-width:260px;margin-top:14px">
+      <label class="field-label">成功酬金抽成 %（總）</label>
+      <input type="number" name="success_fee_rate" value="15" min="0" max="100" step="1">
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── 引薦與備註 ── #}
+  <div class="form-section">
+    <div class="form-section-title">引薦與備註</div>
+    <div class="form-section-desc">引薦來源與其他補充資訊</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div>
+        <label class="field-label">引薦人</label>
+        <input type="text" name="referred_by" value="{{ project.referred_by if project else '' }}">
+      </div>
+      <div>
+        <label class="field-label">引薦關係</label>
+        <select name="referral_relation">
+          <option value="—">—</option>
+          {% for r in ref_relations %}<option value="{{ r }}" {% if project and project.referral_relation==r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div>
+      <label class="field-label">備註</label>
+      <textarea name="notes" rows="3">{{ project.notes if project else '' }}</textarea>
+    </div>
+  </div>
+
+</div>
+
+{# ── Actions ── #}
+<div style="display:flex;align-items:center;gap:10px;margin-top:18px">
+  <button type="submit" class="btn btn-primary">
+    <i data-lucide="check"></i> {{ '儲存變更' if project else '新增案件' }}
+  </button>
+  <a href="/projects" class="btn btn-secondary">取消</a>
+  {% if project %}
+  <div style="margin-left:auto">
+    <button type="button" class="btn btn-danger"
+            onclick="if(confirm('確認刪除此案件？同時刪除計畫書進度與聯繫紀錄，無法恢復。')){document.getElementById('del-form').submit()}">
+      <i data-lucide="trash-2"></i> 刪除案件
+    </button>
+  </div>
+  {% endif %}
+</div>
+</form>
+
+{% if project %}
+<form id="del-form" method="POST" action="/projects/{{ project.id }}/delete" style="display:none"></form>
+
+{# ── 附件檔案 ── #}
+<div class="card" style="overflow:hidden;max-width:880px;margin:18px auto 0">
+  <div style="padding:16px 24px;border-bottom:1px solid #F3F4F6">
+    <div class="form-section-title">附件檔案</div>
+    <div class="form-section-desc">財報、計畫書草稿、公司登記等相關文件</div>
+    <form method="POST" action="/files/upload" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <input type="hidden" name="project_id" value="{{ project.id }}">
+      <input type="hidden" name="redirect_to" value="/projects/{{ project.id }}/edit">
+      <input type="file" name="file" required style="flex:1;font-size:12px;padding:5px">
+      <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="upload"></i> 上傳</button>
+    </form>
+    <div style="font-size:10.5px;color:#9CA3AF;margin-top:6px">單檔上限 25MB</div>
+  </div>
+  {% if attachments %}
+  <div>
+    {% for a in attachments %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 24px;border-bottom:1px solid #F9FAFB">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <i data-lucide="file" style="width:16px;height:16px;color:#9CA3AF;flex-shrink:0"></i>
+        <div style="min-width:0">
+          <a href="/files/{{ a.id }}/download" style="font-size:13px;color:#2E4C6B;text-decoration:none;font-weight:500">{{ a.original_name }}</a>
+          <div style="font-size:11px;color:#9CA3AF">{{ human_size(a.file_size) }} · {{ a.uploaded_by }} · {{ a.uploaded_at[:10] }}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <a href="/files/{{ a.id }}/download" class="btn btn-secondary btn-xs"><i data-lucide="download" style="width:12px;height:12px"></i></a>
+        <form method="POST" action="/files/{{ a.id }}/delete" onsubmit="return confirm('刪除此檔案？')">
+          <input type="hidden" name="redirect_to" value="/projects/{{ project.id }}/edit">
+          <button type="submit" class="btn btn-danger btn-xs"><i data-lucide="trash-2" style="width:12px;height:12px"></i></button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="padding:24px;text-align:center;font-size:12px;color:#9CA3AF">尚無附件</div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
